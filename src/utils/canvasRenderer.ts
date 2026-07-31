@@ -1,5 +1,3 @@
-import stageSvg from '../assets/Stage.svg';
-
 export interface CameraState {
   pan: number;       // -50 to 50
   tilt: number;      // -30 to 30
@@ -21,24 +19,6 @@ function getCachedImage(src: string): HTMLImageElement {
     imageCache[src] = img;
   }
   return imageCache[src];
-}
-
-function drawCroppedScenario(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  side: 'left' | 'right' | 'full',
-  width: number,
-  height: number
-) {
-  if (side === 'full') {
-    ctx.drawImage(img, 0, 0, width, height);
-  } else {
-    const sw = img.naturalWidth * 0.55;
-    const sh = img.naturalHeight * 0.55;
-    const sy = img.naturalHeight * 0.08;
-    const sx = side === 'left' ? img.naturalWidth * 0.03 : img.naturalWidth * 0.42;
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
-  }
 }
 
 function drawMaleCharacter(
@@ -304,7 +284,7 @@ export function drawStageToCanvas(
   cameraIdx: 1 | 2 | 3,
   state: CameraState,
   showWbPanel: boolean,
-  sceneType?: 'none' | 'chairman' | 'interview' | 'watchtower'
+  sceneType?: 'none' | 'chairman' | 'interview' | 'watchtower' | 'stage' | 'demo'
 ) {
   // Clear canvas
   ctx.clearRect(0, 0, width, height);
@@ -340,7 +320,7 @@ export function drawStageToCanvas(
   ctx.filter = `brightness(${brightnessPercent}%) blur(${blurAmount}px)`;
 
   // --- HANDLE HIGH-FIDELITY SCENARIO IMAGES (UNTRANSFORMED DRAWING PATH) ---
-  if (sceneType && sceneType !== 'none') {
+  if (sceneType && sceneType !== 'none' && sceneType !== 'stage' && sceneType !== 'watchtower' && sceneType !== 'demo') {
     let imageDrawn = false;
 
     if (sceneType === 'interview') {
@@ -358,20 +338,6 @@ export function drawStageToCanvas(
         }
       } else if (cameraIdx === 3) {
         const img = getCachedImage('/scenarios/transitionshot.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      }
-    } else if (sceneType === 'watchtower') {
-      if (cameraIdx === 1 || cameraIdx === 3) {
-        const img = getCachedImage('/scenarios/interview_wide.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      } else if (cameraIdx === 2) {
-        const img = getCachedImage('/scenarios/speaker mid close up.png');
         if (img.complete && img.naturalWidth > 0) {
           ctx.drawImage(img, 0, 0, width, height);
           imageDrawn = true;
@@ -424,10 +390,22 @@ export function drawStageToCanvas(
 
   let drawVectorStage = true;
 
-  // --- DRAW BACKGROUND ---
-  const stageImg = getCachedImage('/scenarios/stage.jpeg');
-  if (stageImg.complete && stageImg.naturalWidth > 0 && (!sceneType || sceneType === 'none' || sceneType === 'chairman')) {
-    ctx.drawImage(stageImg, 0, 0, width, height);
+  // --- DRAW BACKGROUND SCENARIO IMAGE ---
+  let ptzBgSrc = '/scenarios/PTZ_Images/Stage.png';
+  if (sceneType === 'watchtower') {
+    ptzBgSrc = '/scenarios/PTZ_Images/StageWT.png';
+  } else if (sceneType === 'demo') {
+    ptzBgSrc = '/scenarios/PTZ_Images/StageDemo.png';
+  }
+
+  const scenarioBgImg = getCachedImage(ptzBgSrc);
+  const fallbackStageImg = getCachedImage('/scenarios/stage.jpeg');
+
+  if (scenarioBgImg.complete && scenarioBgImg.naturalWidth > 0) {
+    ctx.drawImage(scenarioBgImg, 0, 0, width, height);
+    drawVectorStage = false;
+  } else if (fallbackStageImg.complete && fallbackStageImg.naturalWidth > 0) {
+    ctx.drawImage(fallbackStageImg, 0, 0, width, height);
     drawVectorStage = false;
   } else {
     ctx.fillStyle = '#5a8cb3';

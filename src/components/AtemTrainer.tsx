@@ -3,7 +3,6 @@ import AtemMultiview from './AtemMultiview';
 import AtemPanel from './AtemPanel';
 import type { CameraState } from '../utils/canvasRenderer';
 import { useAudio } from '../hooks/useAudio';
-import stageSvg from '../assets/Stage.svg';
 import { AlertCircle, RotateCcw, Home } from 'lucide-react';
 
 interface AtemTrainerProps {
@@ -11,7 +10,7 @@ interface AtemTrainerProps {
 }
 
 export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
-  const { playSuccess, playClick } = useAudio();
+  const { playClick } = useAudio();
   const [bgImageLoaded, setBgImageLoaded] = useState(false);
 
   // Pre-load stage.jpeg background image & ATEM scenario images

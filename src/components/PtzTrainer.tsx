@@ -3,7 +3,6 @@ import CameraViewport from './CameraViewport';
 import BolinController from './BolinController';
 import type { CameraState } from '../utils/canvasRenderer';
 import { useAudio } from '../hooks/useAudio';
-import stageSvg from '../assets/Stage.svg';
 import { HelpCircle, RefreshCw, Bookmark, ArrowRight, Home } from 'lucide-react';
 
 interface PtzTrainerProps {
@@ -25,18 +24,18 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome }) => {
       exposure: 1.0,
       focus: 50,
       focusMode: 'auto',
-      wbStatus: 'default',
-      wbTint: 'rgba(239, 68, 68, 0.12)', // Default reddish uncalibrated tint
+      wbStatus: 'done',
+      wbTint: 'transparent',
     },
     2: {
       pan: 0,
       tilt: 0,
       zoom: 1.0,
-      exposure: 1.2,
+      exposure: 1.0,
       focus: 50,
       focusMode: 'auto',
-      wbStatus: 'default',
-      wbTint: 'rgba(245, 158, 11, 0.15)', // Default warm yellow tint
+      wbStatus: 'done',
+      wbTint: 'transparent',
     },
     3: {
       pan: 20,
@@ -45,10 +44,13 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome }) => {
       exposure: 1.0,
       focus: 50,
       focusMode: 'auto',
-      wbStatus: 'default',
-      wbTint: 'rgba(59, 130, 246, 0.12)', // Default cold blue tint
+      wbStatus: 'done',
+      wbTint: 'transparent',
     },
   });
+
+  // Active Scenario state
+  const [activeScenario, setActiveScenario] = useState<'stage' | 'watchtower' | 'demo'>('stage');
 
   // Controls settings
   const [joystickSpeed, setJoystickSpeed] = useState<number>(4);
@@ -71,15 +73,28 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome }) => {
   const [presetMode, setPresetMode] = useState<'none' | 'store' | 'call'>('none');
   const [bgImageLoaded, setBgImageLoaded] = useState(false);
 
-  // Pre-load stage.jpeg background image
+  // Pre-load PTZ background scenario images
   useEffect(() => {
-    const img = new Image();
-    img.src = '/scenarios/stage.jpeg';
-    img.decode().then(() => {
-      setBgImageLoaded(true);
-    }).catch((err) => {
-      console.warn("Failed to decode stage.jpeg background:", err);
-      setBgImageLoaded(true);
+    const imagesToLoad = [
+      '/scenarios/PTZ_Images/Stage.png',
+      '/scenarios/PTZ_Images/StageWT.png',
+      '/scenarios/PTZ_Images/StageDemo.png',
+      '/scenarios/stage.jpeg',
+    ];
+
+    let loadedCount = 0;
+    imagesToLoad.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+      img.decode().then(() => {
+        loadedCount++;
+        if (loadedCount === imagesToLoad.length) {
+          setBgImageLoaded(true);
+        }
+      }).catch((err) => {
+        console.warn(`Failed to decode image ${src}:`, err);
+        setBgImageLoaded(true);
+      });
     });
   }, []);
 
@@ -473,129 +488,164 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome }) => {
   }, [cameraStates, activeCameraIdx, showWbPanel, presets, activeTutorial, tutorialStep]);
 
   return (
-    <div className="flex flex-col gap-6 max-w-full xl:px-8 mx-auto p-4 w-full">
+    <div className="flex flex-col gap-3 max-w-full xl:px-6 mx-auto p-2 w-full max-h-screen overflow-hidden">
       {/* Header Panel */}
-      <div className="flex justify-between items-center bg-[#11131e] p-4 rounded-xl border border-gray-800 shadow-md">
+      <div className="flex justify-between items-center bg-[#11131e] px-3 py-2 rounded-xl border border-gray-800 shadow-md">
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToHome}
-            className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg cursor-pointer transition-all"
+            className="p-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg cursor-pointer transition-all"
           >
-            <Home className="w-5 h-5" />
+            <Home className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-wide">PTZ Camera Control Center</h1>
-            <p className="text-xs text-gray-400">Interactive PTZ Controller Simulator</p>
+            <h1 className="text-base font-bold text-white tracking-wide leading-none">PTZ Camera Control Center</h1>
+            <p className="text-[10px] text-gray-400">Interactive PTZ Controller Simulator</p>
           </div>
         </div>
 
-        {/* Action / Tutorials Triggers */}
-        <div className="flex gap-2">
+        {/* Action / Tutorials / Scenarios Triggers */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Scenario Selector */}
+          <div className="flex items-center bg-[#0a0b10] border border-gray-800 rounded-lg p-0.5">
+            <span className="text-[9px] font-bold text-gray-400 px-1.5 uppercase font-mono">Scenario:</span>
+            <button
+              onClick={() => { playClick(); setActiveScenario('stage'); }}
+              className={`px-2.5 py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${
+                activeScenario === 'stage'
+                  ? 'bg-cyan-500 text-black shadow'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              Stage
+            </button>
+            <button
+              onClick={() => { playClick(); setActiveScenario('watchtower'); }}
+              className={`px-2.5 py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${
+                activeScenario === 'watchtower'
+                  ? 'bg-cyan-500 text-black shadow'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              Watchtower
+            </button>
+            <button
+              onClick={() => { playClick(); setActiveScenario('demo'); }}
+              className={`px-2.5 py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${
+                activeScenario === 'demo'
+                  ? 'bg-cyan-500 text-black shadow'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              Demonstration
+            </button>
+          </div>
+
           {activeTutorial === 'none' ? (
             <>
               <button
                 onClick={startWbTutorial}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-black font-bold text-xs rounded-lg shadow flex items-center gap-1.5 cursor-pointer transition-all"
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-black font-bold text-[11px] rounded-lg shadow flex items-center gap-1 cursor-pointer transition-all"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                WHITE BALANCE TUTORIAL
+                <RefreshCw className="w-3 h-3" />
+                WB TUTORIAL
               </button>
               <button
                 onClick={startPresetTutorial}
-                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 active:scale-[0.98] text-black font-bold text-xs rounded-lg shadow flex items-center gap-1.5 cursor-pointer transition-all"
+                className="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 active:scale-[0.98] text-black font-bold text-[11px] rounded-lg shadow flex items-center gap-1 cursor-pointer transition-all"
               >
-                <Bookmark className="w-3.5 h-3.5" />
-                PRESET STORAGE TUTORIAL
+                <Bookmark className="w-3 h-3" />
+                PRESET TUTORIAL
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-2 bg-amber-950/40 border border-amber-800/50 rounded-lg px-3 py-1.5">
-              <span className="w-2 h-2 rounded-full led-amber led-pulse"></span>
-              <span className="text-amber-400 font-bold text-xs uppercase tracking-wide">
+            <div className="flex items-center gap-2 bg-amber-950/40 border border-amber-800/50 rounded-lg px-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full led-amber led-pulse"></span>
+              <span className="text-amber-400 font-bold text-[10px] uppercase tracking-wide">
                 TUTORIAL ACTIVE ({activeTutorial.toUpperCase()})
               </span>
               <button
                 onClick={stopTutorial}
-                className="ml-4 text-[10px] text-gray-400 hover:text-white underline cursor-pointer"
+                className="ml-2 text-[9px] text-gray-400 hover:text-white underline cursor-pointer"
               >
-                Quit Tutorial
+                Quit
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Main Content Layout - Side-by-Side on LG screens */}
-      <div className="grid grid-cols-12 gap-6 items-start">
-        {/* Left Column: Viewport, Controls & Info (5 columns on large displays) */}
-        <div className="col-span-12 lg:col-span-5 flex flex-col gap-5">
-          {/* Camera Preview Strip */}
-          <div className="grid grid-cols-3 gap-2">
-            {([1, 2, 3] as const).map((idx) => (
-              <div
-                key={idx}
-                onClick={() => setActiveCameraIdx(idx)}
-                className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-150 border-2 ${
-                  activeCameraIdx === idx
-                    ? 'border-cyan-500 shadow-lg shadow-cyan-500/30 scale-[1.02]'
-                    : 'border-gray-700/60 hover:border-gray-500 opacity-70 hover:opacity-90'
-                }`}
-              >
-                <CameraViewport
-                  cameraIdx={idx}
-                  cameraState={cameraStates[idx]}
-                  showWbPanel={showWbPanel && activeCameraIdx === idx}
-                  isLive={false}
-                  bgImageLoaded={bgImageLoaded}
-                />
-                {/* Label overlay */}
-                <div className={`absolute top-1 left-1.5 text-[9px] font-bold font-mono px-1.5 py-0.5 rounded ${
-                  activeCameraIdx === idx
-                    ? 'bg-cyan-500 text-black'
-                    : 'bg-black/70 text-gray-300'
+      {/* Top 3 Side-by-Side Clear Camera Screens (Cam 1, Cam 2, Cam 3) */}
+      <div className="grid grid-cols-3 gap-3 w-full">
+        {([1, 2, 3] as const).map((idx) => {
+          const isActive = activeCameraIdx === idx;
+          return (
+            <div
+              key={idx}
+              onClick={() => { playClick(); setActiveCameraIdx(idx); }}
+              className={`flex flex-col gap-1 p-1.5 rounded-lg bg-[#11131e] border-2 transition-all duration-150 cursor-pointer ${
+                isActive
+                  ? 'border-cyan-500 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-500/40'
+                  : 'border-gray-800 hover:border-gray-600 opacity-90 hover:opacity-100'
+              }`}
+            >
+              <div className="flex justify-between items-center px-1">
+                <span className={`text-[11px] font-bold font-mono tracking-wider px-1.5 py-0.2 rounded ${
+                  isActive ? 'bg-cyan-500 text-black' : 'bg-gray-800 text-gray-300'
                 }`}>
-                  CAM {idx}
-                </div>
-                {activeCameraIdx === idx && (
-                  <div className="absolute bottom-1 right-1.5 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse inline-block"></span>
-                    <span className="text-[8px] font-bold text-cyan-400 font-mono">ACTIVE</span>
-                  </div>
+                  Cam {idx}
+                </span>
+                {isActive ? (
+                  <span className="text-[9px] font-bold text-cyan-400 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                    ACTIVE
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-gray-500 font-mono">SELECT</span>
                 )}
               </div>
-            ))}
-          </div>
 
-          {/* Main Camera Viewfinder View */}
-          <div className="flex flex-col gap-2">
-            <CameraViewport
-              cameraIdx={activeCameraIdx}
-              cameraState={cameraStates[activeCameraIdx]}
-              showWbPanel={showWbPanel}
-              isLive={false} // purely local simulator
-              bgImageLoaded={bgImageLoaded}
-            />
-            {/* Viewport helpers (e.g. Show White Balance Panel trigger) */}
-            <div className="flex justify-between items-center bg-[#0d0e14] p-3 rounded-lg border border-gray-800/80">
-              <span className="text-xs text-gray-400 font-medium select-text">
-                Stage Controls: Position a target calibration card.
-              </span>
-              <button
-                onClick={() => {
-                  playClick();
-                  setShowWbPanel((prev) => !prev);
-                }}
-                className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer ${
-                  showWbPanel
-                    ? 'bg-amber-600 text-black shadow-md border border-amber-500'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-                }`}
-              >
-                {showWbPanel ? 'Hide White-Balance Panel' : 'Show White-Balance Panel'}
-              </button>
+              <CameraViewport
+                cameraIdx={idx}
+                cameraState={cameraStates[idx]}
+                showWbPanel={showWbPanel && activeCameraIdx === idx}
+                isLive={false}
+                activeScenario={activeScenario}
+                bgImageLoaded={bgImageLoaded}
+              />
             </div>
-          </div>
+          );
+        })}
+      </div>
 
+      {/* Bottom Section: Hardware Controller Surface & Status */}
+      <div className="grid grid-cols-12 gap-6 items-start w-full">
+        {/* Main Condensed Hardware Controller Surface (8 cols) */}
+        <div className="col-span-12 lg:col-span-8">
+          <BolinController
+            activeCameraIdx={activeCameraIdx}
+            cameraState={cameraStates[activeCameraIdx]}
+            onSelectCamera={setActiveCameraIdx}
+            onJoystickMove={handleJoystickMove}
+            onJoystickRelease={handleJoystickRelease}
+            onZoomPress={handleZoomPress}
+            onKnobChange={handleKnobChange}
+            onToggleFocusMode={handleToggleFocusMode}
+            onOnePushWb={handleOnePushWb}
+            onKeypadPress={handleKeypadPress}
+            onPresetModeToggle={() => setPresetMode((prev) => (prev === 'store' ? 'none' : 'store'))}
+            onCallModeToggle={() => setPresetMode((prev) => (prev === 'call' ? 'none' : 'call'))}
+            presetMode={presetMode}
+            joystickSpeed={joystickSpeed}
+            zoomSpeedVal={zoomSpeedVal}
+            presetMessage={presetMessage}
+            invertTilt={invertTilt}
+            onToggleInvertTilt={() => setInvertTilt((prev) => !prev)}
+          />
+        </div>
+
+        {/* Right Sidebar: Active Tutorial & Telemetry (4 cols) */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
           {/* Active Tutorial Card */}
           {activeTutorial !== 'none' && (
             <div className="bg-[#1c1811] border border-amber-700/40 rounded-xl p-5 shadow-xl flex flex-col gap-4">
@@ -638,39 +688,39 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome }) => {
           )}
 
           {/* Calibration guide card */}
-          <div className="bg-[#11131e] border border-gray-800 rounded-xl p-5 shadow-xl flex flex-col gap-4">
-            <h2 className="text-white font-bold text-sm border-b border-gray-800 pb-2 flex items-center gap-1.5 uppercase tracking-wide">
-              <RefreshCw className="w-4 h-4 text-sky-400" />
+          <div className="bg-[#11131e] border border-gray-800 rounded-xl p-3 shadow-xl flex flex-col gap-3">
+            <h2 className="text-white font-bold text-xs border-b border-gray-800 pb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+              <RefreshCw className="w-3.5 h-3.5 text-sky-400" />
               PTZ Telemetry Display
             </h2>
-            <div className="text-xs font-mono text-gray-400 flex flex-col gap-2 select-text">
-              <div className="flex justify-between py-1 border-b border-gray-900">
+            <div className="text-[11px] font-mono text-gray-400 flex flex-col gap-1.5 select-text">
+              <div className="flex justify-between py-0.5 border-b border-gray-900">
                 <span className="text-gray-500 font-bold uppercase">CAM IDX</span>
                 <span className="text-white">0{activeCameraIdx}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-gray-900">
+              <div className="flex justify-between py-0.5 border-b border-gray-900">
                 <span className="text-gray-500 font-bold uppercase">PAN DEG</span>
                 <span className={cameraStates[activeCameraIdx].pan === 0 ? 'text-gray-400' : 'text-cyan-400'}>
                   {cameraStates[activeCameraIdx].pan.toFixed(1)}°
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-gray-900">
+              <div className="flex justify-between py-0.5 border-b border-gray-900">
                 <span className="text-gray-500 font-bold uppercase">TILT DEG</span>
                 <span className={cameraStates[activeCameraIdx].tilt === 0 ? 'text-gray-400' : 'text-cyan-400'}>
                   {cameraStates[activeCameraIdx].tilt.toFixed(1)}°
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-gray-900">
+              <div className="flex justify-between py-0.5 border-b border-gray-900">
                 <span className="text-gray-500 font-bold uppercase">ZOOM LVL</span>
                 <span className="text-white">{cameraStates[activeCameraIdx].zoom.toFixed(1)}x</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-gray-900">
+              <div className="flex justify-between py-0.5 border-b border-gray-900">
                 <span className="text-gray-500 font-bold uppercase">WB CAL</span>
                 <span className={cameraStates[activeCameraIdx].wbStatus === 'done' ? 'text-emerald-400' : 'text-rose-400'}>
                   {cameraStates[activeCameraIdx].wbStatus.toUpperCase()}
                 </span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-0.5">
                 <span className="text-gray-500 font-bold uppercase">PRESETS</span>
                 <span className="text-white font-sans text-[10px]">
                   {Object.keys(presets[activeCameraIdx]).length > 0
@@ -680,30 +730,26 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome }) => {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Column: Bolin Hardware Controller Panel control surface (7 columns on large displays) */}
-        <div className="col-span-12 lg:col-span-7">
-          <BolinController
-            activeCameraIdx={activeCameraIdx}
-            cameraState={cameraStates[activeCameraIdx]}
-            onSelectCamera={setActiveCameraIdx}
-            onJoystickMove={handleJoystickMove}
-            onJoystickRelease={handleJoystickRelease}
-            onZoomPress={handleZoomPress}
-            onKnobChange={handleKnobChange}
-            onToggleFocusMode={handleToggleFocusMode}
-            onOnePushWb={handleOnePushWb}
-            onKeypadPress={handleKeypadPress}
-            onPresetModeToggle={() => setPresetMode((prev) => (prev === 'store' ? 'none' : 'store'))}
-            onCallModeToggle={() => setPresetMode((prev) => (prev === 'call' ? 'none' : 'call'))}
-            presetMode={presetMode}
-            joystickSpeed={joystickSpeed}
-            zoomSpeedVal={zoomSpeedVal}
-            presetMessage={presetMessage}
-            invertTilt={invertTilt}
-            onToggleInvertTilt={() => setInvertTilt((prev) => !prev)}
-          />
+          {/* Stage Calibration Card Controls (Below Telemetry) */}
+          <div className="bg-[#0d0e14] p-2.5 rounded-xl border border-gray-800 flex justify-between items-center w-full">
+            <span className="text-[10px] text-gray-400 font-medium select-text">
+              Stage Calibration Card:
+            </span>
+            <button
+              onClick={() => {
+                playClick();
+                setShowWbPanel((prev) => !prev);
+              }}
+              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                showWbPanel
+                  ? 'bg-amber-600 text-black shadow-md border border-amber-500'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+              }`}
+            >
+              {showWbPanel ? 'Hide WB Card' : 'Show WB Card'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

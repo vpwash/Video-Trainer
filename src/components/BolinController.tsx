@@ -24,6 +24,93 @@ interface BolinControllerProps {
   onToggleInvertTilt: () => void;
 }
 
+// Realistic Interactive Rotary Knob Component
+interface RotaryKnobProps {
+  label: string;
+  min: number;
+  max: number;
+  value: number;
+  displayValue: string;
+  disabled?: boolean;
+  onChange: (val: number) => void;
+}
+
+const RotaryKnob: React.FC<RotaryKnobProps> = ({
+  label,
+  min,
+  max,
+  value,
+  displayValue,
+  disabled = false,
+  onChange,
+}) => {
+  const knobRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Map value to angle (-135deg to +135deg, total 270deg sweep)
+  const pct = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const angle = -135 + pct * 270;
+
+  useEffect(() => {
+    if (!isDragging || disabled) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!knobRef.current) return;
+      const rect = knobRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const dx = e.clientX - centerX;
+      const dy = e.clientY - centerY;
+
+      // Calculate angle in degrees relative to vertical (0 deg = UP)
+      let deg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+      if (deg > 180) deg -= 360;
+
+      // Clamp angle between -135 and +135
+      const clampedDeg = Math.max(-135, Math.min(135, deg));
+      const normalizedPct = (clampedDeg - (-135)) / 270;
+      const newVal = Math.round(min + normalizedPct * (max - min));
+      onChange(newVal);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, min, max, disabled, onChange]);
+
+  return (
+    <div className={`flex flex-col items-center bg-[#1d1f2b] p-2 rounded border border-gray-800 select-none ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
+      <span className="text-[9px] font-bold text-gray-400 mb-1 font-mono text-center tracking-tight">{label}</span>
+      <div
+        ref={knobRef}
+        onMouseDown={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        className={`w-11 h-11 rounded-full bg-gradient-to-b from-[#3a3f54] to-[#1a1c26] border-2 border-gray-700 shadow-md relative flex items-center justify-center cursor-grab active:cursor-grabbing ${
+          disabled ? 'pointer-events-none' : 'hover:border-cyan-500/70'
+        }`}
+      >
+        {/* Indicator marker line */}
+        <div
+          className="absolute top-1 w-1 h-3 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.8)] origin-bottom transition-transform duration-75"
+          style={{ transform: `rotate(${angle}deg)` }}
+        />
+        {/* Inner cap */}
+        <div className="w-5 h-5 rounded-full bg-[#151722] border border-gray-700/60 shadow-inner" />
+      </div>
+      <span className="text-[9px] text-cyan-400 font-mono mt-1 font-semibold">{displayValue}</span>
+    </div>
+  );
+};
+
 export const BolinController: React.FC<BolinControllerProps> = ({
   activeCameraIdx,
   cameraState,
@@ -138,34 +225,34 @@ export const BolinController: React.FC<BolinControllerProps> = ({
   };
 
   return (
-    <div className="bg-[#1f212d] border-4 border-[#313546] rounded-xl p-5 shadow-2xl w-full text-gray-300 font-sans select-none relative">
+    <div className="bg-[#1f212d] border-2 border-[#313546] rounded-xl p-3 shadow-xl w-full text-gray-300 font-sans select-none relative">
       {/* Top panel divider stripe */}
-      <div className="absolute top-0 left-0 right-0 h-2 bg-[#313546] rounded-t-lg"></div>
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#313546] rounded-t-lg"></div>
 
-      <div className="flex flex-col gap-6 mt-1">
+      <div className="flex flex-col gap-3 mt-0.5">
         {/* Labeled Header */}
-        <div className="flex justify-between items-center bg-[#0d0e14] p-3 rounded-lg border border-gray-800">
+        <div className="flex justify-between items-center bg-[#0d0e14] px-3 py-1.5 rounded-lg border border-gray-800">
           <div className="flex flex-col">
-            <span className="text-white text-xs font-bold tracking-wider uppercase">PTZ Controller</span>
-            <span className="text-[10px] text-gray-500 font-mono">HARDWARE CONTROLLER • IP CONTROL</span>
+            <span className="text-white text-xs font-bold tracking-wider uppercase">PTZ Hardware Controller</span>
+            <span className="text-[9px] text-gray-500 font-mono">SERIAL / IP CONTROL SURFACE</span>
           </div>
 
           {/* LCD Status Screen */}
-          <div className="bg-[#0b141a] border border-cyan-900/60 rounded px-4 py-1.5 w-72 text-left lcd-font text-cyan-400 text-xs shadow-inner">
-            <div className="flex justify-between border-b border-cyan-900/30 pb-0.5 text-[9px] text-cyan-600/80 select-text">
+          <div className="bg-[#0b141a] border border-cyan-900/60 rounded px-3 py-1 w-64 text-left lcd-font text-cyan-400 text-[11px] shadow-inner">
+            <div className="flex justify-between border-b border-cyan-900/30 pb-0.5 text-[8px] text-cyan-600/80 select-text">
               <span>CAMERA SELECT</span>
               <span>STATE: {cameraState.wbStatus === 'calibrating' ? 'CALIBRATING' : 'READY'}</span>
             </div>
-            <div className="pt-1 flex flex-col font-bold select-text">
-              <div className="flex justify-between">
+            <div className="pt-0.5 flex flex-col font-bold select-text">
+              <div className="flex justify-between items-center">
                 <span className="lcd-glow-blue">CAM 0{activeCameraIdx}</span>
-                <span className="text-gray-500 text-[10px]">192.168.1.15{activeCameraIdx}</span>
-                <span className="text-emerald-400 font-bold text-[9px] px-1 border border-emerald-900/50 rounded bg-emerald-950/20">
-                  {cameraState.wbStatus === 'done' ? 'LINK OK' : 'LINK OK'}
+                <span className="text-gray-500 text-[9px]">192.168.1.15{activeCameraIdx}</span>
+                <span className="text-emerald-400 font-bold text-[8px] px-1 border border-emerald-900/50 rounded bg-emerald-950/20">
+                  LINK OK
                 </span>
               </div>
-              <div className="text-[9px] text-amber-500 mt-0.5 uppercase tracking-wide min-h-4">
-                {presetMessage || (presetMode === 'store' ? 'STORE PRESET: SELECT KEY' : presetMode === 'call' ? 'CALL PRESET: SELECT KEY' : 'STANDBY')}
+              <div className="text-[8px] text-amber-500 mt-0.5 uppercase tracking-wide min-h-3">
+                {presetMessage || (presetMode === 'store' ? 'STORE PRESET: SELECT KEY' : presetMode === 'call' ? 'CALL PRESET: SELECT KEY' : 'READY')}
               </div>
             </div>
           </div>
@@ -179,66 +266,48 @@ export const BolinController: React.FC<BolinControllerProps> = ({
               CAMERA SETTINGS & DIALS
             </span>
 
-            {/* Dials Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Pan/Tilt Speed Knob */}
-              <div className="flex flex-col items-center bg-[#1d1f2b] p-2.5 rounded border border-gray-800">
-                <span className="text-[10px] font-bold text-gray-400 mb-1.5 font-mono">P/T SPEED</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={joystickSpeed}
-                  onChange={(e) => onKnobChange('speed', parseInt(e.target.value))}
-                  className="w-full accent-cyan-500 cursor-pointer"
-                />
-                <span className="text-[9px] text-cyan-400 font-mono mt-1">Lvl {joystickSpeed}</span>
-              </div>
+            {/* Dials Grid (Rotary Knobs) */}
+            <div className="grid grid-cols-4 md:grid-cols-2 lg:grid-cols-4 gap-2">
+              {/* Pan/Tilt Speed Rotary Knob */}
+              <RotaryKnob
+                label="P/T SPEED"
+                min={1}
+                max={10}
+                value={joystickSpeed}
+                displayValue={`Lvl ${joystickSpeed}`}
+                onChange={(val) => onKnobChange('speed', val)}
+              />
 
-              {/* Zoom Speed Knob */}
-              <div className="flex flex-col items-center bg-[#1d1f2b] p-2.5 rounded border border-gray-800">
-                <span className="text-[10px] font-bold text-gray-400 mb-1.5 font-mono">ZOOM SPEED</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="8"
-                  value={zoomSpeedVal}
-                  onChange={(e) => onKnobChange('zoomSpeed', parseInt(e.target.value))}
-                  className="w-full accent-cyan-500 cursor-pointer"
-                />
-                <span className="text-[9px] text-cyan-400 font-mono mt-1">Lvl {zoomSpeedVal}</span>
-              </div>
+              {/* Zoom Speed Rotary Knob */}
+              <RotaryKnob
+                label="ZOOM SPEED"
+                min={1}
+                max={8}
+                value={zoomSpeedVal}
+                displayValue={`Lvl ${zoomSpeedVal}`}
+                onChange={(val) => onKnobChange('zoomSpeed', val)}
+              />
 
-              {/* Iris Knob */}
-              <div className="flex flex-col items-center bg-[#1d1f2b] p-2.5 rounded border border-gray-800">
-                <span className="text-[10px] font-bold text-gray-400 mb-1.5 font-mono">IRIS (EXPOSURE)</span>
-                <input
-                  type="range"
-                  min="20"
-                  max="200"
-                  value={Math.round(cameraState.exposure * 100)}
-                  onChange={(e) => onKnobChange('exposure', parseInt(e.target.value) / 100)}
-                  className="w-full accent-cyan-500 cursor-pointer"
-                />
-                <span className="text-[9px] text-cyan-400 font-mono mt-1">F{Number(cameraState.exposure * 2.8).toFixed(1)}</span>
-              </div>
+              {/* Iris Rotary Knob */}
+              <RotaryKnob
+                label="IRIS"
+                min={20}
+                max={200}
+                value={Math.round(cameraState.exposure * 100)}
+                displayValue={`F${Number(cameraState.exposure * 2.8).toFixed(1)}`}
+                onChange={(val) => onKnobChange('exposure', val / 100)}
+              />
 
-              {/* Focus Knob */}
-              <div className="flex flex-col items-center bg-[#1d1f2b] p-2.5 rounded border border-gray-800">
-                <span className="text-[10px] font-bold text-gray-400 mb-1.5 font-mono">FOCUS ADJUST</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  disabled={cameraState.focusMode === 'auto'}
-                  value={cameraState.focus}
-                  onChange={(e) => onKnobChange('focus', parseInt(e.target.value))}
-                  className={`w-full cursor-pointer accent-cyan-500 ${cameraState.focusMode === 'auto' ? 'opacity-30 cursor-not-allowed' : ''}`}
-                />
-                <span className="text-[9px] text-cyan-400 font-mono mt-1">
-                  {cameraState.focusMode === 'auto' ? 'LOCKED (AUTO)' : `${cameraState.focus}%`}
-                </span>
-              </div>
+              {/* Focus Rotary Knob */}
+              <RotaryKnob
+                label="FOCUS"
+                min={0}
+                max={100}
+                disabled={cameraState.focusMode === 'auto'}
+                value={cameraState.focus}
+                displayValue={cameraState.focusMode === 'auto' ? 'AUTO' : `${cameraState.focus}%`}
+                onChange={(val) => onKnobChange('focus', val)}
+              />
             </div>
 
             {/* Quick Action Hardware Buttons */}
