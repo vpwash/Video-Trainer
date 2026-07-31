@@ -31,15 +31,17 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
 }) => {
   // We need refs for the 8 input canvases
   const canvasRefs = useRef<{ [key: number]: HTMLCanvasElement | null }>({});
+  // We need refs for the large viewports (Preview, Program) to redraw them on updates
+  const viewportRefs = useRef<{ [key: string]: HTMLCanvasElement | null }>({});
 
-  const sourceLabels: { [key: number]: string } = {
-    1: 'CAM 1 - STAGE R',
-    2: 'CAM 2 - CENTER PTZ',
-    3: 'CAM 3 - STAGE L',
-    4: 'MEDIA 1',
-    5: 'MEDIA 2 - VLC',
-    6: 'STREAM - PC',
-    7: 'COLOR BARS',
+  const buttonLabels: { [key: number]: string } = {
+    1: 'Cam 1',
+    2: 'Cam 2',
+    3: 'Cam 3',
+    4: 'Med 1',
+    5: 'Med 2',
+    6: 'Stream',
+    7: 'Color Bars',
     8: 'BLACK',
   };
 
@@ -52,11 +54,11 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
 
     if (sourceIdx >= 1 && sourceIdx <= 3) {
       const state = cameraStates[sourceIdx];
-      drawStageToCanvas(ctx, w, h, sourceIdx as 1 | 2 | 3, state, showWbPanel, activeScenario);
+      drawStageToCanvas(ctx, w, h, sourceIdx as 1 | 2 | 3, state, showWbPanel, activeScenario, true);
     } else if (sourceIdx === 4) {
-      drawMediaPlayerScreen(ctx, w, h, 'media1', playbackTime);
+      drawMediaPlayerScreen(ctx, w, h, 'media1', playbackTime, activeScenario);
     } else if (sourceIdx === 5) {
-      drawMediaPlayerScreen(ctx, w, h, 'vlc', playbackTime);
+      drawMediaPlayerScreen(ctx, w, h, 'vlc', playbackTime, activeScenario);
     } else if (sourceIdx === 6) {
       // Stream PC (could be live broadcast laptop screen or black)
       ctx.fillStyle = '#06060c';
@@ -77,6 +79,7 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
 
   // Redraw canvases on updates
   useEffect(() => {
+    // Redraw the 8 small inputs
     Object.keys(canvasRefs.current).forEach((key) => {
       const idx = parseInt(key);
       const canvas = canvasRefs.current[idx];
@@ -84,15 +87,33 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
         drawFeed(canvas, idx);
       }
     });
-  }, [cameraStates, playbackTime, showWbPanel, bgImageLoaded]);
+
+    // Redraw the large viewports
+    Object.keys(viewportRefs.current).forEach((key) => {
+      const canvas = viewportRefs.current[key];
+      if (canvas) {
+        const parts = key.split('-');
+        const sourceIdx = parseInt(parts[parts.length - 1]);
+        if (!isNaN(sourceIdx)) {
+          drawFeed(canvas, sourceIdx);
+        }
+      }
+    });
+  }, [cameraStates, playbackTime, showWbPanel, bgImageLoaded, transitionProgress]);
 
   // Render a specific source view (re-creates canvas context locally for Program/Preview)
   const renderViewport = (sourceIdx: number, idSuffix: string) => {
+    const key = `${idSuffix}-${sourceIdx}`;
     return (
       <canvas
         id={`multiview-canvas-${sourceIdx}-${idSuffix}`}
         ref={(el) => {
-          if (el) drawFeed(el, sourceIdx);
+          if (el) {
+            viewportRefs.current[key] = el;
+            drawFeed(el, sourceIdx);
+          } else {
+            delete viewportRefs.current[key];
+          }
         }}
         width={320}
         height={180}
@@ -102,7 +123,7 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
   };
 
   return (
-    <div className="bg-[#0f1016] border-4 border-[#1e202b] rounded-lg p-3 shadow-2xl w-full scanlines">
+    <div className="bg-[#0f1016] border-4 border-[#1e202b] rounded-lg p-3 shadow-2xl w-full">
       {/* Header Info */}
       <div className="flex justify-between items-center text-xs text-gray-500 mb-2 border-b border-gray-800 pb-1 lcd-font">
         <span>MULTIVIEW MONITOR - PRODUCTION SWITCHER</span>
@@ -118,13 +139,20 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
 
       {/* Grid Layout */}
       <div className="grid grid-cols-12 gap-3">
-        {/* PROGRAM WINDOW (Large Left) */}
-        <div className="col-span-6 border-4 border-red-600 rounded overflow-hidden relative shadow-md aspect-video bg-black">
-          <div className="absolute top-1 left-2 z-20 bg-red-600 text-white font-bold text-xs px-2 py-0.5 rounded shadow">
-            PROGRAM
+        {/* PREVIEW WINDOW (Large Left) */}
+        <div className="col-span-6 border-4 border-green-600 rounded overflow-hidden relative shadow-md aspect-video bg-black">
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 text-white font-bold text-xs uppercase tracking-wider drop-shadow-[0_1.5px_1.5px_rgba(0,0,0,0.9)] font-sans text-center whitespace-nowrap">
+            Preview
           </div>
-          <div className="absolute bottom-1 right-2 z-20 text-red-400 font-bold text-[10px] bg-black/75 px-1.5 py-0.5 rounded border border-red-900/50 lcd-font">
-            {sourceLabels[programSource]}
+          <div className="w-full h-full">
+            {renderViewport(previewSource, 'prev')}
+          </div>
+        </div>
+
+        {/* PROGRAM WINDOW (Large Right) */}
+        <div className="col-span-6 border-4 border-red-600 rounded overflow-hidden relative shadow-md aspect-video bg-black">
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 text-white font-bold text-xs uppercase tracking-wider drop-shadow-[0_1.5px_1.5px_rgba(0,0,0,0.9)] font-sans text-center whitespace-nowrap">
+            Program
           </div>
 
           {/* Render with transitions */}
@@ -169,22 +197,9 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
           </div>
         </div>
 
-        {/* PREVIEW WINDOW (Large Right) */}
-        <div className="col-span-6 border-4 border-green-600 rounded overflow-hidden relative shadow-md aspect-video bg-black">
-          <div className="absolute top-1 left-2 z-20 bg-green-600 text-white font-bold text-xs px-2 py-0.5 rounded shadow">
-            PREVIEW
-          </div>
-          <div className="absolute bottom-1 right-2 z-20 text-green-400 font-bold text-[10px] bg-black/75 px-1.5 py-0.5 rounded border border-green-900/50 lcd-font">
-            {sourceLabels[previewSource]}
-          </div>
-          <div className="w-full h-full">
-            {renderViewport(previewSource, 'prev')}
-          </div>
-        </div>
-
-        {/* Inputs Grid (1-8 Small Windows) */}
+        {/* Inputs Grid (Small Windows rearranged: Cam 1-3, Media 1-2, Stream, Bars, Black) */}
         <div className="col-span-12 grid grid-cols-4 gap-2 mt-1">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((idx) => {
+          {[1, 2, 3, 7, 4, 5, 6, 8].map((idx) => {
             const isProg = programSource === idx && transitionProgress === 0;
             const isPrev = previewSource === idx;
             const isSplitProg = transitionProgress > 0 && programSource === idx;
@@ -202,12 +217,9 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
                 key={idx}
                 className={`rounded overflow-hidden relative bg-black aspect-video flex flex-col ${borderStyle} transition-all duration-150`}
               >
-                {/* Labels */}
-                <div className="absolute top-0.5 left-1 z-20 bg-black/75 text-gray-300 font-semibold text-[8px] px-1 rounded border border-gray-800">
-                  {idx}
-                </div>
-                <div className="absolute bottom-0.5 right-1 z-20 bg-black/75 text-gray-400 font-medium text-[8px] px-1 rounded border border-gray-800 lcd-font">
-                  {sourceLabels[idx]}
+                {/* Center Bottom White Text Label Only */}
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 text-white font-bold text-[9px] uppercase tracking-wider drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.9)] font-sans text-center whitespace-nowrap">
+                  {buttonLabels[idx]}
                 </div>
                 {/* Active Program/Preview indicator dot */}
                 <div className="absolute top-1 right-1 z-20 flex gap-1">

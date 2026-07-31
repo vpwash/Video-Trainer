@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import AtemMultiview from './AtemMultiview';
 import AtemPanel from './AtemPanel';
 import type { CameraState } from '../utils/canvasRenderer';
+import { getCachedVideo } from '../utils/canvasRenderer';
 import { useAudio } from '../hooks/useAudio';
-import { AlertCircle, RotateCcw, Home } from 'lucide-react';
+import { AlertCircle, RotateCcw, Home, Settings } from 'lucide-react';
+import { type KeyBindings, formatKeyName } from '../utils/keyBindings';
 
 interface AtemTrainerProps {
   onBackToHome: () => void;
+  keyBindings: KeyBindings;
+  onOpenSettings: () => void;
 }
 
-export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
+export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindings, onOpenSettings }) => {
   const { playClick } = useAudio();
   const [bgImageLoaded, setBgImageLoaded] = useState(false);
 
@@ -35,6 +39,18 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
     scenarioImages.forEach(src => {
       const pImg = new Image();
       pImg.src = src;
+    });
+
+    const mediaVideos = [
+      '/scenarios/ChairmainIntroduction/media1.mp4',
+      '/scenarios/Demonstration/media1.mp4'
+    ];
+    mediaVideos.forEach(src => {
+      try {
+        getCachedVideo(src);
+      } catch (e) {
+        console.warn("Failed to preload video:", src, e);
+      }
     });
   }, []);
 
@@ -130,26 +146,62 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
   type ScenarioType = 'none' | 'chairman' | 'interview' | 'watchtower';
   const [activeScenario, setActiveScenario] = useState<ScenarioType>('chairman');
 
+  // Control Media 1 video playback dynamically (play only on live Program, do not repeat)
+  useEffect(() => {
+    const mediaVideos = [
+      '/scenarios/ChairmainIntroduction/media1.mp4',
+      '/scenarios/Demonstration/media1.mp4'
+    ];
+
+    let activeVideoSrc = '';
+    if (activeScenario === 'chairman') {
+      activeVideoSrc = '/scenarios/ChairmainIntroduction/media1.mp4';
+    } else if (activeScenario === 'interview') {
+      activeVideoSrc = '/scenarios/Demonstration/media1.mp4';
+    }
+
+    mediaVideos.forEach((src) => {
+      try {
+        const video = getCachedVideo(src);
+        if (src === activeVideoSrc && programSource === 4) {
+          // Play from the beginning when switched to Program
+          video.currentTime = 0;
+          video.play().catch((err) => console.warn("Video play failed:", err));
+        } else {
+          // Switched away or scenario changed: pause and reset
+          video.pause();
+          video.currentTime = 0;
+        }
+      } catch (e) {
+        console.warn("Failed to update video status:", e);
+      }
+    });
+  }, [programSource, activeScenario]);
+
   // --- KEYBOARD SHORTCUTS ---
   useEffect(() => {
-    const PROGRAM_KEYS: Record<string, number> = {
-      'a': 1, 's': 2, 'd': 3, 'f': 4, 'g': 5, 'h': 6, 'j': 7, ';': 8,
-    };
-    const PREVIEW_KEYS: Record<string, number> = {
-      'z': 1, 'x': 2, 'c': 3, 'v': 4, 'b': 5, 'n': 6, 'm': 7, '/': 8,
-    };
+    const buttonSourceOrder = [8, 1, 2, 3, 4, 5, 6, 7];
+    const PROGRAM_KEYS: Record<string, number> = {};
+    keyBindings.atem.program.forEach((k, idx) => {
+      PROGRAM_KEYS[k.toLowerCase()] = buttonSourceOrder[idx] ?? (idx + 1);
+    });
+
+    const PREVIEW_KEYS: Record<string, number> = {};
+    keyBindings.atem.preview.forEach((k, idx) => {
+      PREVIEW_KEYS[k.toLowerCase()] = buttonSourceOrder[idx] ?? (idx + 1);
+    });
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if focus is on an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      if (e.key === 'Enter') {
+      if (e.key.toLowerCase() === keyBindings.atem.cut.toLowerCase()) {
         e.preventDefault();
         handleCut();
         return;
       }
-      if (e.key === 'Shift') {
+      if (e.key.toLowerCase() === keyBindings.atem.auto.toLowerCase()) {
         e.preventDefault();
         handleAuto();
         return;
@@ -171,7 +223,7 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [programSource, previewSource, isAutoTransitioning]);
+  }, [programSource, previewSource, isAutoTransitioning, keyBindings]);
 
   const startScenarioType = (type: ScenarioType) => {
     playClick();
@@ -216,6 +268,13 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
 
         {/* Scenario Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={onOpenSettings}
+            className="px-3 py-1.5 font-bold text-[10px] rounded-lg shadow-md flex items-center gap-1.5 cursor-pointer bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-all active:scale-[0.98]"
+          >
+            <Settings className="w-3.5 h-3.5 animate-spin-slow" />
+            SETTINGS
+          </button>
           <button
             onClick={() => startScenarioType('chairman')}
             className={`px-3 py-1.5 font-bold text-[10px] rounded-lg shadow-md flex items-center gap-1 cursor-pointer transition-all border ${
@@ -317,36 +376,44 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome }) => {
             <div className="flex flex-col gap-2 text-[11px]">
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">CUT</span>
-                <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded font-mono text-[10px]">Enter</kbd>
+                <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded font-mono text-[10px]">{formatKeyName(keyBindings.atem.cut)}</kbd>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">AUTO Dissolve</span>
-                <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded font-mono text-[10px]">Shift</kbd>
+                <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded font-mono text-[10px]">{formatKeyName(keyBindings.atem.auto)}</kbd>
               </div>
               <div className="border-t border-gray-800 pt-2 mt-1">
                 <p className="text-gray-500 mb-1.5 font-semibold uppercase tracking-wide text-[9px]">Program Bus (Live)</p>
                 <div className="grid grid-cols-8 gap-1">
-                  {(['a','s','d','f','g','h','j',';'] as const).map((k, i) => (
-                    <div key={k} className="flex flex-col items-center gap-0.5">
-                      <kbd className={`w-full text-center bg-red-950/60 border border-red-800/60 text-red-300 px-1 py-0.5 rounded font-mono text-[9px] ${
-                        programSource === i + 1 ? 'ring-1 ring-red-500 bg-red-700/60' : ''
-                      }`}>{k}</kbd>
-                      <span className="text-gray-600 text-[8px]">{i + 1}</span>
-                    </div>
-                  ))}
+                  {keyBindings.atem.program.map((k, i) => {
+                    const sourceIdx = [8, 1, 2, 3, 4, 5, 6, 7][i] ?? (i + 1);
+                    const labels = ['BLK', 'CAM1', 'CAM2', 'CAM3', 'MED1', 'MED2', 'STRM', 'BARS'];
+                    return (
+                      <div key={i} className="flex flex-col items-center gap-0.5">
+                        <kbd className={`w-full text-center bg-red-950/60 border border-red-800/60 text-red-300 px-1 py-0.5 rounded font-mono text-[9px] ${
+                          programSource === sourceIdx ? 'ring-1 ring-red-500 bg-red-700/60' : ''
+                        }`}>{formatKeyName(k)}</kbd>
+                        <span className="text-gray-600 text-[8px]">{labels[i] ?? (i + 1)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div className="border-t border-gray-800 pt-2">
                 <p className="text-gray-500 mb-1.5 font-semibold uppercase tracking-wide text-[9px]">Preview Bus</p>
                 <div className="grid grid-cols-8 gap-1">
-                  {(['z','x','c','v','b','n','m','/'] as const).map((k, i) => (
-                    <div key={k} className="flex flex-col items-center gap-0.5">
-                      <kbd className={`w-full text-center bg-green-950/60 border border-green-800/60 text-green-300 px-1 py-0.5 rounded font-mono text-[9px] ${
-                        previewSource === i + 1 ? 'ring-1 ring-green-500 bg-green-700/60' : ''
-                      }`}>{k}</kbd>
-                      <span className="text-gray-600 text-[8px]">{i + 1}</span>
-                    </div>
-                  ))}
+                  {keyBindings.atem.preview.map((k, i) => {
+                    const sourceIdx = [8, 1, 2, 3, 4, 5, 6, 7][i] ?? (i + 1);
+                    const labels = ['BLK', 'CAM1', 'CAM2', 'CAM3', 'MED1', 'MED2', 'STRM', 'BARS'];
+                    return (
+                      <div key={i} className="flex flex-col items-center gap-0.5">
+                        <kbd className={`w-full text-center bg-green-950/60 border border-green-800/60 text-green-300 px-1 py-0.5 rounded font-mono text-[9px] ${
+                          previewSource === sourceIdx ? 'ring-1 ring-green-500 bg-green-700/60' : ''
+                        }`}>{formatKeyName(k)}</kbd>
+                        <span className="text-gray-600 text-[8px]">{labels[i] ?? (i + 1)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

@@ -21,6 +21,49 @@ function getCachedImage(src: string): HTMLImageElement {
   return imageCache[src];
 }
 
+const videoCache: { [key: string]: HTMLVideoElement } = {};
+
+export function getCachedVideo(src: string): HTMLVideoElement {
+  if (!videoCache[src]) {
+    const video = document.createElement('video');
+    video.src = src;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('webkit-playsinline', 'true');
+    video.preload = 'auto';
+    
+    // Media 1 video files should not loop or autoplay
+    if (src.includes('media1.mp4')) {
+      video.loop = false;
+      video.autoplay = false;
+      video.load();
+    } else {
+      video.loop = true;
+      video.autoplay = true;
+      video.play().catch((err) => {
+        console.warn("Video play failed:", err);
+      });
+    }
+    videoCache[src] = video;
+  }
+  return videoCache[src];
+}
+
+function drawMediaFile(ctx: CanvasRenderingContext2D, src: string, w: number, h: number) {
+  if (src.endsWith('.mp4')) {
+    const video = getCachedVideo(src);
+    ctx.drawImage(video, 0, 0, w, h);
+  } else {
+    const img = getCachedImage(src);
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, 0, 0, w, h);
+    } else {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+}
+
 function drawMaleCharacter(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -284,20 +327,22 @@ export function drawStageToCanvas(
   cameraIdx: 1 | 2 | 3,
   state: CameraState,
   showWbPanel: boolean,
-  sceneType?: 'none' | 'chairman' | 'interview' | 'watchtower' | 'stage' | 'demo'
+  sceneType?: 'none' | 'chairman' | 'interview' | 'watchtower' | 'stage' | 'demo',
+  isAtem?: boolean
 ) {
   // Clear canvas
   ctx.clearRect(0, 0, width, height);
   ctx.save();
 
   // Apply camera filters (Exposure and Focus)
+  const isAtemScenario = isAtem && (sceneType === 'chairman' || sceneType === 'interview' || sceneType === 'watchtower');
   let blurAmount = 0;
-  if (state.focusMode === 'manual') {
+  if (state.focusMode === 'manual' && !isAtemScenario) {
     // Blur is proportional to how far focus is from 50 (sweet spot)
     blurAmount = Math.abs(state.focus - 50) / 5;
   }
   
-  const brightnessPercent = Math.round(state.exposure * 100);
+  const brightnessPercent = isAtemScenario ? 100 : Math.round(state.exposure * 100);
   
   // Apply filters via canvas context if supported
   ctx.filter = `brightness(${brightnessPercent}%) blur(${blurAmount}px)`;
@@ -320,60 +365,28 @@ export function drawStageToCanvas(
   ctx.filter = `brightness(${brightnessPercent}%) blur(${blurAmount}px)`;
 
   // --- HANDLE HIGH-FIDELITY SCENARIO IMAGES (UNTRANSFORMED DRAWING PATH) ---
-  if (sceneType && sceneType !== 'none' && sceneType !== 'stage' && sceneType !== 'watchtower' && sceneType !== 'demo') {
+  if (isAtemScenario) {
     let imageDrawn = false;
+    let sceneFolder = '';
+    if (sceneType === 'chairman') {
+      sceneFolder = 'ChairmainIntroduction';
+    } else if (sceneType === 'interview') {
+      sceneFolder = 'Demonstration';
+    } else if (sceneType === 'watchtower') {
+      sceneFolder = 'Watchtower';
+    }
 
-    if (sceneType === 'interview') {
-      if (cameraIdx === 1) {
-        const img = getCachedImage('/scenarios/interview_wide.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      } else if (cameraIdx === 2) {
-        const img = getCachedImage('/scenarios/speaker mid close up.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      } else if (cameraIdx === 3) {
-        const img = getCachedImage('/scenarios/transitionshot.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      }
-    } else if (sceneType === 'chairman') {
-      if (cameraIdx === 1) {
-        const img = getCachedImage('/scenarios/transitionshot.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      } else if (cameraIdx === 2) {
-        const img = getCachedImage('/scenarios/speaker mid close up.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
-      } else if (cameraIdx === 3) {
-        const img = getCachedImage('/scenarios/chairman_cam3.png');
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, 0, 0, width, height);
-          imageDrawn = true;
-        }
+    if (sceneFolder) {
+      const camSrc = `/scenarios/${sceneFolder}/cam${cameraIdx}.png`;
+      const img = getCachedImage(camSrc);
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, 0, 0, width, height);
+        imageDrawn = true;
       }
     }
 
     if (imageDrawn) {
       ctx.restore();
-      // Apply White Balance overlay
-      if (state.wbStatus !== 'done' && state.wbTint && state.wbTint !== 'transparent') {
-        ctx.fillStyle = state.wbTint;
-        ctx.globalCompositeOperation = 'color';
-        ctx.fillRect(0, 0, width, height);
-        ctx.globalCompositeOperation = 'source-over';
-      }
       return;
     }
   }
@@ -716,8 +729,30 @@ export function drawMediaPlayerScreen(
   width: number,
   height: number,
   type: 'media1' | 'vlc',
-  playbackTime: number
+  playbackTime: number,
+  activeScenario?: 'none' | 'chairman' | 'interview' | 'watchtower'
 ) {
+  // Determine media source path
+  let mediaSrc = '';
+  if (activeScenario === 'chairman') {
+    mediaSrc = type === 'media1' 
+      ? '/scenarios/ChairmainIntroduction/media1.mp4' 
+      : '/scenarios/ChairmainIntroduction/media2.png';
+  } else if (activeScenario === 'interview') {
+    mediaSrc = type === 'media1' 
+      ? '/scenarios/Demonstration/media1.mp4' 
+      : '/scenarios/Demonstration/media2.png';
+  } else if (activeScenario === 'watchtower') {
+    mediaSrc = type === 'media1' 
+      ? '/scenarios/Watchtower/media1.png' 
+      : '/scenarios/Watchtower/media2.png';
+  }
+
+  if (mediaSrc) {
+    drawMediaFile(ctx, mediaSrc, width, height);
+    return;
+  }
+
   ctx.fillStyle = '#090d16';
   ctx.fillRect(0, 0, width, height);
 
@@ -743,15 +778,7 @@ export function drawMediaPlayerScreen(
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Media 1', width / 2, height - 40);
-
-    // Timeline bar
-    ctx.fillStyle = '#374151';
-    ctx.fillRect(10, height - 15, width - 20, 6);
-    
-    ctx.fillStyle = '#0284c7';
-    const progressWidth = ((playbackTime % 60) / 60) * (width - 20);
-    ctx.fillRect(10, height - 15, progressWidth, 6);
+    ctx.fillText('Media 1', width / 2, height - 20); // adjusted y offset
   } else {
     // Simulated VLC Backup screen
     ctx.fillStyle = '#1e1b4b'; // Dark violet
@@ -778,13 +805,6 @@ export function drawMediaPlayerScreen(
     ctx.fillStyle = '#ea580c';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Media 2', width / 2, height - 40);
-
-    // Timeline
-    ctx.fillStyle = '#374151';
-    ctx.fillRect(10, height - 15, width - 20, 6);
-    ctx.fillStyle = '#ea580c';
-    const progressWidth = ((playbackTime * 1.5 % 60) / 60) * (width - 20);
-    ctx.fillRect(10, height - 15, progressWidth, 6);
+    ctx.fillText('Media 2', width / 2, height - 20); // adjusted y offset
   }
 }

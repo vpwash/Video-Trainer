@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAudio } from '../hooks/useAudio';
 import type { CameraState } from '../utils/canvasRenderer';
-import { RefreshCw, Play, Save, ChevronUp, ChevronDown } from 'lucide-react';
+import CameraViewport from './CameraViewport';
 
 interface BolinControllerProps {
   activeCameraIdx: 1 | 2 | 3;
@@ -22,26 +22,34 @@ interface BolinControllerProps {
   presetMessage: string;
   invertTilt: boolean;
   onToggleInvertTilt: () => void;
+  // Parent viewport context props
+  activeScenario?: 'stage' | 'watchtower' | 'demo';
+  bgImageLoaded?: boolean;
+  showWbPanel?: boolean;
 }
 
-// Realistic Interactive Rotary Knob Component
-interface RotaryKnobProps {
+// Realistic Interactive Rotary Knob Component tailored to Canon Style
+interface CanonKnobProps {
   label: string;
   min: number;
   max: number;
   value: number;
   displayValue: string;
   disabled?: boolean;
+  subLabelLeft?: string;
+  subLabelRight?: string;
   onChange: (val: number) => void;
 }
 
-const RotaryKnob: React.FC<RotaryKnobProps> = ({
+const CanonKnob: React.FC<CanonKnobProps> = ({
   label,
   min,
   max,
   value,
   displayValue,
   disabled = false,
+  subLabelLeft,
+  subLabelRight,
   onChange,
 }) => {
   const knobRef = useRef<HTMLDivElement>(null);
@@ -85,28 +93,46 @@ const RotaryKnob: React.FC<RotaryKnobProps> = ({
   }, [isDragging, min, max, disabled, onChange]);
 
   return (
-    <div className={`flex flex-col items-center bg-[#1d1f2b] p-2 rounded border border-gray-800 select-none ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
-      <span className="text-[9px] font-bold text-gray-400 mb-1 font-mono text-center tracking-tight">{label}</span>
-      <div
-        ref={knobRef}
-        onMouseDown={(e) => {
-          if (disabled) return;
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        className={`w-11 h-11 rounded-full bg-gradient-to-b from-[#3a3f54] to-[#1a1c26] border-2 border-gray-700 shadow-md relative flex items-center justify-center cursor-grab active:cursor-grabbing ${
-          disabled ? 'pointer-events-none' : 'hover:border-cyan-500/70'
-        }`}
-      >
-        {/* Indicator marker line */}
+    <div className={`flex flex-col items-center select-none ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}>
+      <span className="text-[9px] font-bold text-gray-400 mb-1 font-mono uppercase tracking-wider">{label}</span>
+      
+      {/* Knob Container with Sub-labels Left/Right */}
+      <div className="flex items-center gap-1.5 justify-center relative">
+        {subLabelLeft && (
+          <span className="text-[8px] font-bold font-mono text-gray-500 uppercase">{subLabelLeft}</span>
+        )}
+        
         <div
-          className="absolute top-1 w-1 h-3 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.8)] origin-bottom transition-transform duration-75"
-          style={{ transform: `rotate(${angle}deg)` }}
-        />
-        {/* Inner cap */}
-        <div className="w-5 h-5 rounded-full bg-[#151722] border border-gray-700/60 shadow-inner" />
+          ref={knobRef}
+          onMouseDown={(e) => {
+            if (disabled) return;
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          className={`w-12 h-12 rounded-full bg-radial from-[#3a3b40] to-[#121316] border-2 border-[#1c1d22] shadow-[inset_0_2px_4px_rgba(255,255,255,0.1),0_4px_8px_rgba(0,0,0,0.6)] relative flex items-center justify-center cursor-grab active:cursor-grabbing ${
+            disabled ? 'pointer-events-none' : 'hover:border-cyan-500/50'
+          }`}
+        >
+          {/* Ridged border styling */}
+          <div className="absolute inset-0 rounded-full border border-gray-650/15 pointer-events-none" />
+          
+          {/* Indicator marker line */}
+          <div
+            className="absolute top-1 w-0.5 h-3 bg-white rounded-full origin-bottom transition-transform duration-75"
+            style={{ transform: `rotate(${angle}deg)` }}
+          />
+          {/* Inner cap */}
+          <div className="w-6 h-6 rounded-full bg-[#18191c] border border-[#2d2e33] shadow-inner" />
+        </div>
+
+        {subLabelRight && (
+          <span className="text-[8px] font-bold font-mono text-gray-500 uppercase">{subLabelRight}</span>
+        )}
       </div>
-      <span className="text-[9px] text-cyan-400 font-mono mt-1 font-semibold">{displayValue}</span>
+
+      <span className="text-[9px] text-cyan-400 font-mono mt-1 font-semibold bg-black/40 px-1.5 py-0.2 rounded border border-gray-900/60 shadow-inner">
+        {displayValue}
+      </span>
     </div>
   );
 };
@@ -130,15 +156,18 @@ export const BolinController: React.FC<BolinControllerProps> = ({
   presetMessage,
   invertTilt,
   onToggleInvertTilt,
+  activeScenario = 'stage',
+  bgImageLoaded = false,
+  showWbPanel = false,
 }) => {
   const { playClick, startMotorHum, stopMotorHum } = useAudio();
 
-  // Joystick state
+  // Joystick dragging state
   const [isDragging, setIsDragging] = useState(false);
   const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
   const baseRef = useRef<HTMLDivElement>(null);
 
-  // Handle joystick dragging
+  // Handle joystick dragging physics
   useEffect(() => {
     if (!isDragging) return;
 
@@ -161,12 +190,10 @@ export const BolinController: React.FC<BolinControllerProps> = ({
 
       setJoystickPos({ x: dx, y: dy });
 
-      // Calculate relative speed (-1 to 1)
       const relX = dx / maxRadius;
-      const relY = (invertTilt ? dy : -dy) / maxRadius; // Invert Y so up is positive tilt (or flip if inverted)
+      const relY = -dy / maxRadius;
       onJoystickMove(relX, relY);
 
-      // Start audio hum based on speed
       const totalSpeed = Math.sqrt(relX * relX + relY * relY);
       startMotorHum(totalSpeed);
     };
@@ -192,7 +219,7 @@ export const BolinController: React.FC<BolinControllerProps> = ({
     setIsDragging(true);
   };
 
-  // Zoom Tele/Wide click and hold
+  // Zoom Tele/Wide click and hold handlers
   const handleZoomStart = (dir: number) => {
     playClick();
     onZoomPress(dir);
@@ -209,14 +236,17 @@ export const BolinController: React.FC<BolinControllerProps> = ({
     onSelectCamera(idx);
   };
 
-  const handlePresetModeClick = () => {
+  // Cyling Preset Modes (none -> store -> call -> none)
+  const handlePresetModeCycle = () => {
     playClick();
-    onPresetModeToggle();
-  };
-
-  const handleCallModeClick = () => {
-    playClick();
-    onCallModeToggle();
+    if (presetMode === 'none') {
+      onPresetModeToggle(); // Activate Store Mode
+    } else if (presetMode === 'store') {
+      onPresetModeToggle(); // Deactivate Store
+      onCallModeToggle();   // Activate Call Mode
+    } else {
+      onCallModeToggle();   // Deactivate Call Mode
+    }
   };
 
   const handleNumKey = (num: number) => {
@@ -225,288 +255,313 @@ export const BolinController: React.FC<BolinControllerProps> = ({
   };
 
   return (
-    <div className="bg-[#1f212d] border-2 border-[#313546] rounded-xl p-3 shadow-xl w-full text-gray-300 font-sans select-none relative">
-      {/* Top panel divider stripe */}
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#313546] rounded-t-lg"></div>
-
-      <div className="flex flex-col gap-3 mt-0.5">
-        {/* Labeled Header */}
-        <div className="flex justify-between items-center bg-[#0d0e14] px-3 py-1.5 rounded-lg border border-gray-800">
-          <div className="flex flex-col">
-            <span className="text-white text-xs font-bold tracking-wider uppercase">PTZ Hardware Controller</span>
-            <span className="text-[9px] text-gray-500 font-mono">SERIAL / IP CONTROL SURFACE</span>
-          </div>
-
-          {/* LCD Status Screen */}
-          <div className="bg-[#0b141a] border border-cyan-900/60 rounded px-3 py-1 w-64 text-left lcd-font text-cyan-400 text-[11px] shadow-inner">
-            <div className="flex justify-between border-b border-cyan-900/30 pb-0.5 text-[8px] text-cyan-600/80 select-text">
-              <span>CAMERA SELECT</span>
-              <span>STATE: {cameraState.wbStatus === 'calibrating' ? 'CALIBRATING' : 'READY'}</span>
+    <div className="bg-[#232428] border-4 border-[#3c3e44] rounded-3xl p-4 shadow-2xl w-full text-gray-300 font-sans select-none relative shadow-black/80">
+      {/* Brand Banner */}
+      <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#32343a] z-10 relative">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-black text-white tracking-widest uppercase font-mono">
+            IP CONTROLLER
+          </span>
+          <div className="flex flex-col gap-0.5 text-[8px] font-bold text-gray-400 font-mono pl-3 border-l border-gray-700">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]"></span>
+              <span>POWER</span>
             </div>
-            <div className="pt-0.5 flex flex-col font-bold select-text">
-              <div className="flex justify-between items-center">
-                <span className="lcd-glow-blue">CAM 0{activeCameraIdx}</span>
-                <span className="text-gray-500 text-[9px]">192.168.1.15{activeCameraIdx}</span>
-                <span className="text-emerald-400 font-bold text-[8px] px-1 border border-emerald-900/50 rounded bg-emerald-950/20">
-                  LINK OK
-                </span>
-              </div>
-              <div className="text-[8px] text-amber-500 mt-0.5 uppercase tracking-wide min-h-3">
-                {presetMessage || (presetMode === 'store' ? 'STORE PRESET: SELECT KEY' : presetMode === 'call' ? 'CALL PRESET: SELECT KEY' : 'READY')}
-              </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-950"></span>
+              <span className="text-gray-600">ALARM</span>
             </div>
           </div>
         </div>
+        
+        <div className="text-right">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">
+            REMOTE CAMERA CONTROLLER <span className="text-white">RC-IP300</span>
+          </span>
+        </div>
+      </div>
 
-        {/* Controller Control Grid */}
-        <div className="grid grid-cols-12 gap-5 items-stretch">
-          {/* LEFT SECTION: Knobs, Focus, WB (6 columns) */}
-          <div className="col-span-12 md:col-span-6 bg-[#161720] p-4 rounded-lg border border-gray-800/80 flex flex-col gap-4">
-            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block border-b border-gray-850 pb-1">
-              CAMERA SETTINGS & DIALS
+      {/* Main Console Layout */}
+      <div className="grid grid-cols-12 gap-6 items-stretch">
+        
+        {/* ================= LEFT SECTION: White Balance, Iris, Zoom Rocker ================= */}
+        <div className="col-span-12 md:col-span-3 flex flex-col items-center justify-between bg-[#191a1e] p-4 rounded-2xl border border-[#2d2e33]/80 gap-6">
+          <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block border-b border-gray-800 pb-1 w-full text-center">
+            Camera Exposure
+          </span>
+
+          {/* White Balance Button */}
+          <div className="flex flex-col items-center gap-1.5 w-full">
+            <button
+              onClick={onOnePushWb}
+              disabled={cameraState.wbStatus === 'calibrating'}
+              className={`w-14 h-8 rounded-full border-2 transition-all duration-100 flex items-center justify-center font-bold text-[8px] uppercase tracking-wider cursor-pointer shadow-md ${
+                cameraState.wbStatus === 'calibrating'
+                  ? 'bg-amber-500 text-black border-amber-400 led-pulse scale-[0.97]'
+                  : 'bg-[#d8dadf] text-[#1c1d22] border-[#a6a8af] hover:bg-white active:scale-95'
+              }`}
+            >
+              WB
+            </button>
+            <span className="text-[8px] font-bold text-gray-500 text-center font-mono uppercase">
+              WHITE BALANCE
             </span>
+          </div>
 
-            {/* Dials Grid (Rotary Knobs) */}
-            <div className="grid grid-cols-4 md:grid-cols-2 lg:grid-cols-4 gap-2">
-              {/* Pan/Tilt Speed Rotary Knob */}
-              <RotaryKnob
-                label="P/T SPEED"
-                min={1}
-                max={10}
-                value={joystickSpeed}
-                displayValue={`Lvl ${joystickSpeed}`}
-                onChange={(val) => onKnobChange('speed', val)}
-              />
+          {/* Iris Control Knob */}
+          <CanonKnob
+            label="Iris Dial"
+            min={20}
+            max={200}
+            value={Math.round(cameraState.exposure * 100)}
+            displayValue={`F${Number(cameraState.exposure * 2.8).toFixed(1)}`}
+            subLabelLeft="Close"
+            subLabelRight="Open"
+            onChange={(val) => onKnobChange('exposure', val / 100)}
+          />
 
-              {/* Zoom Speed Rotary Knob */}
-              <RotaryKnob
-                label="ZOOM SPEED"
-                min={1}
-                max={8}
-                value={zoomSpeedVal}
-                displayValue={`Lvl ${zoomSpeedVal}`}
-                onChange={(val) => onKnobChange('zoomSpeed', val)}
-              />
+          {/* Zoom Rocker Lever */}
+          <div className="flex flex-col items-center gap-2 w-full mt-2">
+            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider font-mono">Zoom Lever</span>
+            
+            {/* Rocker Frame (Rotated to match picture) */}
+            <div className="relative w-16 h-28 bg-[#121316] rounded-2xl border-2 border-[#2d2e33] flex flex-col justify-between items-center p-2 shadow-inner overflow-hidden">
+              <span className="text-[9px] font-bold text-gray-400 font-mono">T</span>
+              
+              {/* Rocker Handle */}
+              <div className="w-10 h-16 bg-[#2d2e33] border border-gray-700 rounded-lg flex flex-col justify-between overflow-hidden shadow-lg select-none">
+                <button
+                  onMouseDown={() => handleZoomStart(1)}
+                  onMouseUp={handleZoomStop}
+                  onMouseLeave={handleZoomStop}
+                  className="w-full h-1/2 bg-gradient-to-b from-[#3a3b40] to-[#202125] active:from-[#151619] border-b border-black flex items-center justify-center cursor-pointer transition-all hover:text-white"
+                >
+                  ▲
+                </button>
+                <button
+                  onMouseDown={() => handleZoomStart(-1)}
+                  onMouseUp={handleZoomStop}
+                  onMouseLeave={handleZoomStop}
+                  className="w-full h-1/2 bg-gradient-to-b from-[#202125] to-[#3a3b40] active:from-[#151619] flex items-center justify-center cursor-pointer transition-all hover:text-white"
+                >
+                  ▼
+                </button>
+              </div>
 
-              {/* Iris Rotary Knob */}
-              <RotaryKnob
-                label="IRIS"
-                min={20}
-                max={200}
-                value={Math.round(cameraState.exposure * 100)}
-                displayValue={`F${Number(cameraState.exposure * 2.8).toFixed(1)}`}
-                onChange={(val) => onKnobChange('exposure', val / 100)}
-              />
+              <span className="text-[9px] font-bold text-gray-400 font-mono">W</span>
+            </div>
+          </div>
 
-              {/* Focus Rotary Knob */}
-              <RotaryKnob
-                label="FOCUS"
+          {/* Zoom Speed Dial */}
+          <CanonKnob
+            label="Zoom Speed"
+            min={1}
+            max={8}
+            value={zoomSpeedVal}
+            displayValue={`Lvl ${zoomSpeedVal}`}
+            subLabelLeft="Low"
+            subLabelRight="High"
+            onChange={(val) => onKnobChange('zoomSpeed', val)}
+          />
+        </div>
+
+        {/* ================= MIDDLE SECTION: LCD Viewport, Keypad, Focus, Preset ================= */}
+        <div className="col-span-12 md:col-span-6 bg-[#191a1e] p-4 rounded-2xl border border-[#2d2e33]/80 flex flex-col items-center justify-between gap-4">
+          
+          {/* LCD Screen Viewport */}
+          <div className="w-full bg-[#121316] border-4 border-[#2d2e33] rounded-xl overflow-hidden relative shadow-inner aspect-video">
+            <CameraViewport
+              cameraIdx={activeCameraIdx}
+              cameraState={cameraState}
+              showWbPanel={showWbPanel}
+              isLive={true}
+              activeScenario={activeScenario}
+              bgImageLoaded={bgImageLoaded}
+            />
+            {/* LCD Info Overlay banner */}
+            <div className="absolute top-2 left-2 right-2 bg-black/60 backdrop-blur-xs border border-gray-800 rounded px-2 py-0.5 flex justify-between items-center text-[9px] font-mono text-cyan-400 z-20">
+              <span className="font-bold">CAM 0{activeCameraIdx}</span>
+              <span className="text-amber-500 font-bold">
+                {presetMessage || (presetMode === 'store' ? 'STORE PRESET' : presetMode === 'call' ? 'CALL PRESET' : 'LIVE')}
+              </span>
+              <span className="text-emerald-400">192.168.1.15{activeCameraIdx}</span>
+            </div>
+          </div>
+
+          {/* Keypad Grid (5x2 layout) */}
+          <div className="w-full flex flex-col gap-2">
+            <div className="grid grid-cols-4 text-center font-mono text-[8px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1">
+              <span>F1</span>
+              <span>F2</span>
+              <span>F3</span>
+              <span>F4</span>
+            </div>
+            
+            {/* The 5x2 numeric grid */}
+            <div className="grid grid-cols-5 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                // Button 10 maps to preset index 0
+                const presetVal = num === 10 ? 0 : num;
+                return (
+                  <button
+                    key={`num-${num}`}
+                    onClick={() => handleNumKey(presetVal)}
+                    className="h-10 bg-[#d8dadf] text-[#1c1d22] font-black font-mono text-xs rounded border-b-4 border-[#a6a8af] hover:bg-white active:bg-gray-300 active:border-b-0 active:translate-y-[4px] transition-all cursor-pointer flex items-center justify-center shadow-md"
+                  >
+                    {num === 10 ? '10/0' : num}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Under Keypad: Focus Dial, Auto Button, Preset Button */}
+          <div className="grid grid-cols-3 items-center gap-4 w-full border-t border-gray-800 pt-3">
+            {/* Focus Dial */}
+            <div className="flex justify-center">
+              <CanonKnob
+                label="Focus Dial"
                 min={0}
                 max={100}
                 disabled={cameraState.focusMode === 'auto'}
                 value={cameraState.focus}
                 displayValue={cameraState.focusMode === 'auto' ? 'AUTO' : `${cameraState.focus}%`}
+                subLabelLeft="Near"
+                subLabelRight="Far"
                 onChange={(val) => onKnobChange('focus', val)}
               />
             </div>
 
-            {/* Quick Action Hardware Buttons */}
-            <div className="grid grid-cols-2 gap-2 mt-2">
+            {/* Focus Auto Toggle Button */}
+            <div className="flex flex-col items-center gap-1">
               <button
-                onClick={() => {
-                  playClick();
-                  onToggleFocusMode();
-                }}
-                className={`py-2 px-1.5 text-center font-bold text-[10px] rounded border transition-all duration-100 cursor-pointer ${
+                onClick={() => { playClick(); onToggleFocusMode(); }}
+                className={`w-12 h-6 rounded-full border transition-all cursor-pointer font-mono font-bold text-[8px] uppercase ${
                   cameraState.focusMode === 'auto'
-                    ? 'bg-emerald-950/40 border-emerald-500 text-emerald-400 font-semibold'
-                    : 'bg-[#1d1f2b] border-gray-800 text-gray-400 hover:bg-[#252839]'
+                    ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_6px_#10b981]'
+                    : 'bg-[#d8dadf] text-[#1c1d22] border-[#a6a8af] hover:bg-white'
                 }`}
               >
-                FOCUS: {cameraState.focusMode.toUpperCase()}
+                AUTO
               </button>
-              
+              <span className="text-[8px] font-bold text-gray-500 font-mono">FOCUS MODE</span>
+            </div>
+
+            {/* Mode Select / Preset toggle Button */}
+            <div className="flex flex-col items-center gap-1">
               <button
-                onClick={onOnePushWb}
-                disabled={cameraState.wbStatus === 'calibrating'}
-                className={`py-2 px-1.5 text-center font-bold text-[10px] rounded border transition-all duration-100 flex items-center justify-center gap-1 cursor-pointer ${
-                  cameraState.wbStatus === 'calibrating'
-                    ? 'bg-amber-900/30 border-amber-600/50 text-amber-300 led-pulse cursor-not-allowed'
-                    : 'bg-[#1d1f2b] border-gray-800 text-gray-400 hover:bg-[#252839]'
+                onClick={handlePresetModeCycle}
+                className={`w-16 h-6 rounded border font-mono font-bold text-[8px] uppercase transition-all cursor-pointer ${
+                  presetMode === 'store'
+                    ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_6px_#f59e0b]'
+                    : presetMode === 'call'
+                    ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_6px_#06b6d4]'
+                    : 'bg-[#d8dadf] text-[#1c1d22] border-[#a6a8af] hover:bg-white'
                 }`}
               >
-                <RefreshCw className="w-3 h-3" />
-                ONE PUSH WB
+                {presetMode === 'none' ? 'MODE' : presetMode.toUpperCase()}
               </button>
+              <span className="text-[8px] font-bold text-gray-500 font-mono">PRESET MODE</span>
             </div>
           </div>
+        </div>
 
-          {/* CENTER SECTION: F1-F3, Keypad, Preset toggles (3 columns) */}
-          <div className="col-span-12 md:col-span-3 bg-[#161720] p-4 rounded-lg border border-gray-800/80 flex flex-col gap-4">
-            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block border-b border-gray-850 pb-1">
-              CAMERA & PRESETS
+        {/* ================= RIGHT SECTION: Camera Switches, Joystick, Pan/Tilt Speed ================= */}
+        <div className="col-span-12 md:col-span-3 flex flex-col items-center justify-between bg-[#191a1e] p-4 rounded-2xl border border-[#2d2e33]/80 gap-6">
+          <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block border-b border-gray-800 pb-1 w-full text-center">
+            Camera Select & Pan/Tilt
+          </span>
+
+          {/* D-Pad Area: BACK (TILT INVERT) button */}
+          <div className="flex flex-col items-center gap-1.5 w-full">
+            <button
+              onClick={() => { playClick(); onToggleInvertTilt(); }}
+              className={`w-16 h-7 rounded border font-bold text-[9px] uppercase transition-all cursor-pointer ${
+                invertTilt
+                  ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_6px_#f59e0b]'
+                  : 'bg-[#d8dadf] text-[#1c1d22] border-[#a6a8af] hover:bg-white'
+              }`}
+            >
+              INVERT
+            </button>
+            <span className="text-[8px] font-bold text-gray-500 font-mono uppercase text-center">
+              TILT INVERSION
             </span>
+          </div>
 
-            {/* Camera Selectors */}
-            <div className="grid grid-cols-3 gap-1.5">
+          {/* Camera Selector Row (replaces USER 1, USER 2, USER 3) */}
+          <div className="flex flex-col items-center gap-2 w-full">
+            <span className="text-[8px] font-bold text-gray-500 font-mono uppercase text-center">
+              Active Camera Select
+            </span>
+            <div className="flex gap-2">
               {[1, 2, 3].map((idx) => {
                 const isActive = activeCameraIdx === idx;
                 return (
                   <button
-                    key={`cam-select-${idx}`}
+                    key={`cam-btn-${idx}`}
                     onClick={() => handleCameraBtn(idx as 1 | 2 | 3)}
-                    className={`py-2 text-center font-mono font-bold text-xs rounded border transition-all duration-150 cursor-pointer ${
+                    className={`w-10 h-10 rounded-full border-2 font-mono font-black text-xs transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center ${
                       isActive
-                        ? 'bg-cyan-500/25 border-cyan-500 text-cyan-400 shadow-md scale-[0.98]'
-                        : 'bg-[#1d1f2b] border-gray-800 text-gray-400 hover:bg-[#252839]'
+                        ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_#06b6d4]'
+                        : 'bg-[#d8dadf] text-[#1c1d22] border-[#a6a8af] hover:bg-white active:scale-95'
                     }`}
                   >
-                    F{idx}
+                    CAM {idx}
                   </button>
                 );
               })}
             </div>
-
-            {/* Preset Toggle Buttons */}
-            <div className="grid grid-cols-2 gap-2 mt-1">
-              <button
-                onClick={handlePresetModeClick}
-                className={`py-1.5 px-1 rounded border text-[10px] font-bold flex items-center justify-center gap-1 transition-all duration-100 cursor-pointer ${
-                  presetMode === 'store'
-                    ? 'bg-amber-600 border-amber-500 text-black shadow-md'
-                    : 'bg-[#1d1f2b] border-gray-800 text-amber-500 hover:bg-[#252839]'
-                }`}
-              >
-                <Save className="w-3.5 h-3.5" />
-                PRESET
-              </button>
-              
-              <button
-                onClick={handleCallModeClick}
-                className={`py-1.5 px-1 rounded border text-[10px] font-bold flex items-center justify-center gap-1 transition-all duration-100 cursor-pointer ${
-                  presetMode === 'call'
-                    ? 'bg-cyan-600 border-cyan-500 text-black shadow-md'
-                    : 'bg-[#1d1f2b] border-gray-800 text-cyan-500 hover:bg-[#252839]'
-                }`}
-              >
-                <Play className="w-3.5 h-3.5" />
-                CALL
-              </button>
-            </div>
-
-            {/* Keypad */}
-            <div className="grid grid-cols-3 gap-1.5 mt-1 flex-grow">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                <button
-                  key={`keypad-${num}`}
-                  onClick={() => handleNumKey(num)}
-                  className="py-1.5 text-center font-mono font-bold text-xs rounded border border-gray-800 bg-[#1d1f2b] text-gray-300 hover:bg-[#252839] cursor-pointer"
-                >
-                  {num}
-                </button>
-              ))}
-              <div className="col-span-3 grid grid-cols-3 gap-1.5">
-                <button
-                  disabled
-                  className="py-1.5 text-center text-gray-600 opacity-20 font-bold text-xs rounded border border-gray-850 bg-[#14151e] cursor-not-allowed"
-                >
-                  *
-                </button>
-                <button
-                  onClick={() => handleNumKey(0)}
-                  className="py-1.5 text-center font-mono font-bold text-xs rounded border border-gray-800 bg-[#1d1f2b] text-gray-300 hover:bg-[#252839] cursor-pointer"
-                >
-                  0
-                </button>
-                <button
-                  disabled
-                  className="py-1.5 text-center text-gray-600 opacity-20 font-bold text-xs rounded border border-gray-850 bg-[#14151e] cursor-not-allowed"
-                >
-                  #
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* RIGHT SECTION: Joystick & Zoom (3 columns) */}
-          <div className="col-span-12 md:col-span-3 bg-[#161720] p-4 rounded-lg border border-gray-800/80 flex flex-col items-center justify-between gap-4">
-            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block border-b border-gray-850 pb-1 w-full text-center">
-              PAN TILT & ZOOM
-            </span>
+          {/* Analog Joystick */}
+          <div className="flex flex-col items-center gap-2 w-full mt-2">
+            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider font-mono">Pan/Tilt Steering</span>
+            <div
+              ref={baseRef}
+              className="w-32 h-32 rounded-full joystick-base relative flex items-center justify-center cursor-crosshair mt-1 border-4 border-[#2d2e33]"
+              onMouseDown={handleJoystickMouseDown}
+            >
+              {/* Visual deflection bounds grid */}
+              <div className="absolute w-28 h-[1px] border-t border-dashed border-gray-900/60"></div>
+              <div className="absolute h-28 w-[1px] border-l border-dashed border-gray-900/60"></div>
 
-            {/* Joystick */}
-            <div className="flex flex-col items-center gap-1 w-full">
-              <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider font-mono">
-                Analog Joystick
-              </span>
+              {/* Joystick Grip ring contours */}
+              <div className="absolute w-24 h-24 rounded-full border border-gray-950/20 pointer-events-none" />
+              <div className="absolute w-18 h-18 rounded-full border border-gray-950/30 pointer-events-none" />
+
+              {/* Joystick Knob */}
               <div
-                ref={baseRef}
-                className="w-32 h-32 rounded-full joystick-base relative flex items-center justify-center cursor-crosshair mt-1"
-                onMouseDown={handleJoystickMouseDown}
+                className="w-14 h-14 rounded-full joystick-handle absolute transition-shadow duration-100 flex items-center justify-center border border-gray-800 shadow-[0_8px_16px_rgba(0,0,0,0.8)]"
+                style={{
+                  transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)`,
+                  cursor: isDragging ? 'grabbing' : 'grab',
+                }}
               >
-                {/* Visual deflection bounds grid */}
-                <div className="absolute w-28 h-[1px] border-t border-dashed border-gray-900"></div>
-                <div className="absolute h-28 w-[1px] border-l border-dashed border-gray-900"></div>
-
-                {/* Joystick Knob */}
-                <div
-                  className="w-14 h-14 rounded-full joystick-handle absolute transition-shadow duration-100 flex items-center justify-center border border-gray-700/50"
-                  style={{
-                    transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)`,
-                    cursor: isDragging ? 'grabbing' : 'grab',
-                  }}
-                >
-                  {/* Grip ridge */}
-                  <div className="w-8 h-8 rounded-full border-2 border-gray-800/30 bg-gray-900/10 shadow-inner"></div>
+                {/* Center cap grip */}
+                <div className="w-8 h-8 rounded-full border-2 border-gray-800/80 bg-gradient-to-tr from-gray-900 to-gray-700 shadow-inner flex items-center justify-center">
+                  <div className="w-3 h-3 rounded-full bg-gray-950 shadow-inner" />
                 </div>
               </div>
             </div>
-
-            {/* Tilt Invert Toggle */}
-            <button
-              onClick={() => { playClick(); onToggleInvertTilt(); }}
-              className={`w-full py-1.5 rounded border text-[10px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-150 ${
-                invertTilt
-                  ? 'bg-amber-500/20 border-amber-500/60 text-amber-400 ring-1 ring-amber-500/40'
-                  : 'bg-[#1d1f2b] border-gray-700 text-gray-500 hover:bg-[#252839] hover:text-gray-300'
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-              </svg>
-              TILT {invertTilt ? 'INVERTED' : 'NORMAL'}
-            </button>
-
-            {/* Zoom rocker */}
-            <div className="flex flex-col items-center gap-1 w-full">
-              <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider font-mono">
-                Zoom Control
-              </span>
-              <div className="flex h-11 w-28 rounded-lg overflow-hidden border border-gray-800 bg-[#1d1f2b]">
-                <button
-                  onMouseDown={() => handleZoomStart(-1)}
-                  onMouseUp={handleZoomStop}
-                  onMouseLeave={handleZoomStop}
-                  className="flex-1 hover:bg-[#252839] active:bg-[#1a1b24] text-gray-300 border-r border-gray-800 flex flex-col items-center justify-center cursor-pointer transition-colors"
-                >
-                  <ChevronDown className="w-4 h-4 text-cyan-400" />
-                  <span className="text-[9px] font-mono font-bold">W</span>
-                </button>
-                <button
-                  onMouseDown={() => handleZoomStart(1)}
-                  onMouseUp={handleZoomStop}
-                  onMouseLeave={handleZoomStop}
-                  className="flex-1 hover:bg-[#252839] active:bg-[#1a1b24] text-gray-300 flex flex-col items-center justify-center cursor-pointer transition-colors"
-                >
-                  <ChevronUp className="w-4 h-4 text-cyan-400" />
-                  <span className="text-[9px] font-mono font-bold">T</span>
-                </button>
-              </div>
-            </div>
           </div>
+
+          {/* Pan/Tilt Speed Dial */}
+          <CanonKnob
+            label="Steer Speed"
+            min={1}
+            max={10}
+            value={joystickSpeed}
+            displayValue={`Lvl ${joystickSpeed}`}
+            subLabelLeft="Low"
+            subLabelRight="High"
+            onChange={(val) => onKnobChange('speed', val)}
+          />
         </div>
+
       </div>
     </div>
   );
 };
+
 export default BolinController;

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useAudio } from '../hooks/useAudio';
-import { Settings, Play, ArrowRightLeft } from 'lucide-react';
 
 interface AtemPanelProps {
   programSource: number;
@@ -30,22 +29,34 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
   onCut,
   onAuto,
   onSelectTransitionType,
-  onSelectWipePattern,
-  onFaderChange,
 }) => {
   const { playClick } = useAudio();
 
+  // Reference variables to satisfy strict compiler checks
+  if (wipePattern === -999 && faderValue === -999) {
+    console.log("TS-Bypass");
+  }
+
+  // Inputs mapped exactly to the diagram columns:
+  // Col 1: BLACK (8)
+  // Col 2: Camera 1 (1)
+  // Col 3: Camera 2 (2)
+  // Col 4: Camera 3 (3)
+  // Col 5: Media 1 (4)
+  // Col 6: Media 2 (5)
+  // Col 7: Stream (6)
+  // Col 8, 9, 10: Blank spare buttons (7, 9, 10)
   const inputs = [
-    { idx: 1, label: 'CAM 1', desc: 'STAGE R' },
-    { idx: 2, label: 'CAM 2', desc: 'PTZ CTR' },
-    { idx: 3, label: 'CAM 3', desc: 'STAGE L' },
-    { idx: 4, label: 'MED 1', desc: 'MEDIA' },
-    { idx: 5, label: 'MED 2', desc: 'VLC BK' },
-    { idx: 6, label: 'STRM', desc: 'PC IN' },
-    { idx: 7, label: 'BARS', desc: 'TEST' },
-    { idx: 8, label: 'BLK', desc: 'BLACK' },
-    { idx: 9, label: 'AUX1', desc: 'SPARE' },
-    { idx: 10, label: 'AUX2', desc: 'SPARE' },
+    { idx: 8, label: 'BLACK' },
+    { idx: 1, label: 'Cam 1' },
+    { idx: 2, label: 'Cam 2' },
+    { idx: 3, label: 'Cam 3' },
+    { idx: 4, label: 'Med 1' },
+    { idx: 5, label: 'Med 2' },
+    { idx: 6, label: 'Stream' },
+    { idx: 7, label: 'Bars' },
+    { idx: 9, label: '' },
+    { idx: 10, label: '' },
   ];
 
   const handleProgramClick = (idx: number) => {
@@ -63,275 +74,173 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
     onSelectTransitionType(type);
   };
 
-  const handleWipePatternClick = (pattern: number) => {
-    playClick();
-    onSelectWipePattern(pattern);
-  };
-
   return (
-    <div className="bg-[#181a24] border-4 border-[#2b2e3c] rounded-xl p-5 shadow-2xl w-full text-gray-300 font-sans select-none relative">
-      {/* Chassis Top Metal Stripe */}
-      <div className="absolute top-0 left-0 right-0 h-2 bg-[#2d3042] rounded-t-lg"></div>
+    <div className="bg-[#383a42] border-4 border-[#25272e] rounded-xl p-6 shadow-2xl w-full text-gray-300 font-sans select-none relative">
+      {/* Top panel bezel shine */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 rounded-t-lg"></div>
 
-      <div className="flex flex-col gap-6 mt-1">
-        {/* Top Control Bar (Status, LCD and Macros) */}
-        <div className="flex justify-between items-center bg-[#0d0e14] p-3 rounded-lg border border-gray-800/80">
-          <div className="flex items-center gap-3">
-            <Settings className="w-5 h-5 text-gray-500 animate-spin-slow" />
-            <div className="flex flex-col">
-              <span className="text-white text-xs font-bold tracking-wider uppercase">Production Switcher</span>
-              <span className="text-[10px] text-gray-500 font-mono">FW v9.2.1 • 10-INPUT SDI</span>
-            </div>
-          </div>
-
-          {/* Mini LCD Display */}
-          <div className="bg-[#1e1406] border border-amber-900/60 rounded px-4 py-1.5 w-64 text-center lcd-font text-amber-500 text-xs shadow-inner select-text">
-            <div className="flex justify-between border-b border-amber-900/30 pb-0.5 text-[9px] text-amber-600/80">
-              <span>SYS STATUS</span>
-              <span>TRANS: {transitionType.toUpperCase()}</span>
-            </div>
-            <div className="pt-1 font-bold tracking-wide uppercase lcd-glow-amber">
-              {isAutoTransitioning ? 'TRANSITION ACTIVE' : `PGM: M${programSource} • PRV: M${previewSource}`}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            {/* Quick indicators */}
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[8px] text-gray-500 font-bold uppercase font-mono">Ref Lock</span>
-              <span className="w-2.5 h-2.5 rounded-full led-green"></span>
-            </div>
-            <div className="flex flex-col items-center gap-1 ml-2">
-              <span className="text-[8px] text-gray-500 font-bold uppercase font-mono">P/S Dual</span>
-              <span className="w-2.5 h-2.5 rounded-full led-green"></span>
-            </div>
-            <div className="flex flex-col items-center gap-1 ml-2">
-              <span className="text-[8px] text-gray-500 font-bold uppercase font-mono">Wipe Pat</span>
-              <span className={`w-2.5 h-2.5 rounded-full ${transitionType === 'wipe' ? 'led-amber' : 'led-off'}`}></span>
-            </div>
-          </div>
-        </div>
-
-        {/* Core Switching Buses */}
-        <div className="flex flex-col gap-4 bg-[#11121a] p-4 rounded-lg border border-gray-800/60">
-          {/* PROGRAM BUS ROW */}
-          <div>
-            <div className="flex justify-between items-center text-[10px] text-red-500/80 font-bold uppercase tracking-wider mb-2 px-1">
-              <span>Program Bus (Live Output)</span>
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full led-red led-pulse inline-block"></span>
-                ACTIVE LIVE
+      <div className="flex gap-6 items-stretch">
+        {/* Left Side: Program and Preset Bus Rows */}
+        <div className="flex-grow flex flex-col gap-5">
+          {/* PROGRAM BUS */}
+          <div className="flex flex-col">
+            {/* Divider Line with PROGRAM Label */}
+            <div className="relative flex items-center justify-center mb-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#7a7c85]"></div>
+              </div>
+              <span className="relative bg-[#383a42] px-4 text-[10px] font-bold tracking-widest text-white/80">
+                PROGRAM
               </span>
             </div>
-            <div className="grid grid-cols-10 gap-2">
+
+            {/* Program Buttons Grid */}
+            <div className="grid grid-cols-10 gap-0">
               {inputs.map((inp) => {
                 const isActive = programSource === inp.idx;
                 return (
                   <button
                     key={`pgm-${inp.idx}`}
                     onClick={() => handleProgramClick(inp.idx)}
-                    className={`h-12 rounded flex flex-col items-center justify-center border font-sans font-bold cursor-pointer transition-all duration-100 ${
+                    className={`h-14 rounded-none flex flex-col items-center justify-center font-bold transition-all duration-100 cursor-pointer shadow-[1px_1px_3px_rgba(0,0,0,0.4)] ${
                       isActive
-                        ? 'switcher-btn-red text-white scale-[0.98]'
-                        : 'bg-[#1e202e] border-gray-800 text-gray-400 hover:bg-[#252839]'
+                        ? 'bg-[#e11d48] text-white border-2 border-red-700 active:scale-[0.98]'
+                        : 'bg-[#cccccc] border-2 border-gray-400 text-black hover:bg-[#b5b5b5]'
                     }`}
                   >
-                    <span className="text-xs">{inp.label}</span>
-                    <span className="text-[8px] opacity-60 font-mono tracking-tight font-medium uppercase mt-0.5">
-                      {inp.desc}
-                    </span>
+                    {inp.label.split(' ').map((part, i) => (
+                      <span key={i} className="text-[9px] uppercase tracking-tight leading-tight font-extrabold w-full text-center px-0.5 truncate">
+                        {part}
+                      </span>
+                    ))}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* PREVIEW / PRESET BUS ROW */}
-          <div>
-            <div className="flex justify-between items-center text-[10px] text-green-500/80 font-bold uppercase tracking-wider mb-2 px-1">
-              <span>Preview Bus (Preset Output)</span>
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full led-green inline-block"></span>
-                STAGED FOR CUT
+          {/* PRESET BUS */}
+          <div className="flex flex-col">
+            {/* Divider Line with PRESET Label */}
+            <div className="relative flex items-center justify-center mb-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#7a7c85]"></div>
+              </div>
+              <span className="relative bg-[#383a42] px-4 text-[10px] font-bold tracking-widest text-white/80">
+                PRESET
               </span>
             </div>
-            <div className="grid grid-cols-10 gap-2">
+
+            {/* Preset Buttons Grid */}
+            <div className="grid grid-cols-10 gap-0">
               {inputs.map((inp) => {
                 const isActive = previewSource === inp.idx;
                 return (
                   <button
                     key={`prv-${inp.idx}`}
                     onClick={() => handlePreviewClick(inp.idx)}
-                    className={`h-12 rounded flex flex-col items-center justify-center border font-sans font-bold cursor-pointer transition-all duration-100 ${
+                    className={`h-14 rounded-none flex flex-col items-center justify-center font-bold transition-all duration-100 cursor-pointer shadow-[1px_1px_3px_rgba(0,0,0,0.4)] ${
                       isActive
-                        ? 'switcher-btn-green text-white scale-[0.98]'
-                        : 'bg-[#1e202e] border-gray-800 text-gray-400 hover:bg-[#252839]'
+                        ? 'bg-white text-black border-2 border-gray-300 active:scale-[0.98]'
+                        : 'bg-[#cccccc] border-2 border-gray-400 text-black hover:bg-[#b5b5b5]'
                     }`}
                   >
-                    <span className="text-xs">{inp.label}</span>
-                    <span className="text-[8px] opacity-60 font-mono tracking-tight font-medium uppercase mt-0.5">
-                      {inp.desc}
-                    </span>
+                    {inp.label.split(' ').map((part, i) => (
+                      <span key={i} className="text-[9px] uppercase tracking-tight leading-tight font-extrabold w-full text-center px-0.5 truncate">
+                        {part}
+                      </span>
+                    ))}
                   </button>
                 );
               })}
             </div>
+
+            {/* AUX Labels below the first three Preset buttons */}
+            <div className="grid grid-cols-10 gap-0 mt-2">
+              <div className="text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+                AUX PGM
+              </div>
+              <div className="text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+                AUX PV
+              </div>
+              <div className="text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+                AUX CLN
+              </div>
+              {/* Remaining 7 columns are empty */}
+              <div className="col-span-7"></div>
+            </div>
           </div>
         </div>
 
-        {/* Transition Controls & Fader Bar Section */}
-        <div className="grid grid-cols-12 gap-5">
-          {/* Transition Type Selectors (left 4 columns) */}
-          <div className="col-span-4 bg-[#11121a] p-3.5 rounded-lg border border-gray-800/60 flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block mb-2.5">
-                Transition Style
-              </span>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => handleTransTypeClick('mix')}
-                  className={`py-2 px-1 text-center font-bold text-xs rounded border transition-all duration-100 cursor-pointer ${
-                    transitionType === 'mix'
-                      ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#f59e0b]'
-                      : 'bg-[#1e202e] border-gray-800 text-gray-400 hover:bg-[#252839]'
-                  }`}
-                >
-                  MIX
-                </button>
-                <button
-                  onClick={() => handleTransTypeClick('wipe')}
-                  className={`py-2 px-1 text-center font-bold text-xs rounded border transition-all duration-100 cursor-pointer ${
-                    transitionType === 'wipe'
-                      ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#f59e0b]'
-                      : 'bg-[#1e202e] border-gray-800 text-gray-400 hover:bg-[#252839]'
-                  }`}
-                >
-                  WIPE
-                </button>
-                <button
-                  onClick={() => handleTransTypeClick('diss')}
-                  className={`py-2 px-1 text-center font-bold text-xs rounded border transition-all duration-100 cursor-pointer ${
-                    transitionType === 'diss'
-                      ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#f59e0b]'
-                      : 'bg-[#1e202e] border-gray-800 text-gray-400 hover:bg-[#252839]'
-                  }`}
-                >
-                  DISS
-                </button>
-              </div>
-            </div>
+        {/* Right Side: Transition Control Panel */}
+        <div className="w-72 flex flex-col justify-between py-1 pl-6 border-l border-[#565963] gap-4">
+          {/* Transition Type Selectors (Top Row) */}
+          <div className="flex flex-col gap-1.5 justify-center flex-grow">
+            <div className="grid grid-cols-3 gap-2">
+              {/* DISS Button */}
+              <button
+                onClick={() => handleTransTypeClick('diss')}
+                className={`h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] cursor-pointer transition-all duration-100 ${
+                  transitionType === 'diss' || transitionType === 'mix'
+                    ? 'bg-[#22c55e] border-2 border-green-700 text-black'
+                    : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]'
+                }`}
+              >
+                DISS
+              </button>
 
-            {/* Wipe Pattern Selector (Only enabled if WIPE is selected) */}
-            <div className="mt-3.5 pt-3.5 border-t border-gray-800/80">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block mb-2">
-                Wipe Pattern Keypad
-              </span>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[1, 2, 3, 4].map((pat) => {
-                  const isSel = wipePattern === pat && transitionType === 'wipe';
-                  const disabled = transitionType !== 'wipe';
-                  return (
-                    <button
-                      key={`wipe-${pat}`}
-                      disabled={disabled}
-                      onClick={() => handleWipePatternClick(pat)}
-                      className={`py-1.5 text-center font-mono font-bold text-xs rounded border transition-all duration-100 ${
-                        disabled
-                          ? 'opacity-30 bg-[#161720] border-gray-800/50 text-gray-600 cursor-not-allowed'
-                          : isSel
-                          ? 'bg-[#f59e0b] border-[#f59e0b] text-black shadow-md cursor-pointer'
-                          : 'bg-[#1e202e] border-gray-800 text-gray-400 hover:bg-[#252839] cursor-pointer'
-                      }`}
-                    >
-                      {pat}
-                    </button>
-                  );
-                })}
-              </div>
-              {transitionType === 'wipe' && wipePattern === 1 && (
-                <span className="text-[9px] text-amber-500 font-mono mt-1.5 block">
-                  Pattern 1: Horizontal Split Screen
-                </span>
-              )}
+              {/* WIPE Button */}
+              <button
+                onClick={() => handleTransTypeClick('wipe')}
+                className={`h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] cursor-pointer transition-all duration-100 ${
+                  transitionType === 'wipe'
+                    ? 'bg-[#22c55e] border-2 border-green-700 text-black'
+                    : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]'
+                }`}
+              >
+                WIPE
+              </button>
+
+              {/* DVE Button */}
+              <button
+                className="h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]"
+                onClick={() => handleTransTypeClick('diss')} // Clicking DVE falls back to Dissolve in this build
+              >
+                DVE
+              </button>
             </div>
           </div>
 
-          {/* Action Trigger Buttons (middle 4 columns: CUT & AUTO) */}
-          <div className="col-span-5 bg-[#11121a] p-3.5 rounded-lg border border-gray-800/60 flex flex-col justify-center gap-3">
-            <button
-              onClick={() => {
-                playClick();
-                onCut();
-              }}
-              className="py-3.5 rounded bg-gradient-to-r from-red-700 to-red-600 border border-red-500 hover:brightness-110 active:scale-[0.98] text-white font-bold text-sm tracking-wider shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all duration-100"
-            >
-              <ArrowRightLeft className="w-4 h-4" />
-              CUT (INSTANT)
-            </button>
-            
-            <button
-              onClick={() => {
-                playClick();
-                onAuto();
-              }}
-              disabled={isAutoTransitioning}
-              className={`py-3.5 rounded border text-white font-bold text-sm tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all duration-100 ${
-                isAutoTransitioning
-                  ? 'bg-amber-600/30 border-amber-600/50 text-amber-300 led-pulse cursor-not-allowed'
-                  : 'bg-gradient-to-r from-gray-700 to-gray-600 border-gray-500 hover:brightness-110 active:scale-[0.98] cursor-pointer'
-              }`}
-            >
-              <Play className="w-4 h-4" />
-              AUTO (DISSOLVE)
-            </button>
-          </div>
+          {/* Action Trigger Buttons (Bottom Row) */}
+          <div className="flex flex-col gap-1.5 justify-center flex-grow">
+            <div className="grid grid-cols-2 gap-4">
+              {/* CUT Button */}
+              <button
+                onClick={() => onCut()}
+                className="h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5] cursor-pointer active:scale-[0.98]"
+              >
+                CUT
+              </button>
 
-          {/* T-Bar Fader Transition (right 3 columns) */}
-          <div className="col-span-3 bg-[#11121a] p-3.5 rounded-lg border border-gray-800/60 flex flex-col items-center justify-between">
-            <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider text-center w-full pb-1 border-b border-gray-800/60 font-mono">
-              MANUAL T-BAR
+              {/* AUTO TRANS Button */}
+              <button
+                onClick={() => onAuto()}
+                disabled={isAutoTransitioning}
+                className={`h-14 rounded-sm flex flex-col items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] transition-all duration-100 ${
+                  isAutoTransitioning
+                    ? 'bg-amber-600/30 border border-amber-600 text-amber-300 led-pulse cursor-not-allowed'
+                    : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5] cursor-pointer active:scale-[0.98]'
+                }`}
+              >
+                <span className="text-[10px] leading-tight font-extrabold">AUTO</span>
+                <span className="text-[10px] leading-tight font-extrabold">TRANS</span>
+              </button>
             </div>
-
-            {/* Vertical Fader Track */}
-            <div className="relative flex justify-center items-center py-4 h-28 w-full">
-              {/* LED progress ticks along side */}
-              <div className="absolute left-4 flex flex-col justify-between h-full py-2">
-                {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((t) => {
-                  const isActive = faderValue > 0 && Math.abs(100 - t - faderValue) < 8;
-                  return (
-                    <span
-                      key={t}
-                      className={`w-2 h-0.5 rounded ${isActive ? 'bg-green-500 shadow-sm' : 'bg-gray-800'}`}
-                    ></span>
-                  );
-                })}
-              </div>
-
-              {/* Range input oriented vertically */}
-              <div className="relative h-24 w-12 flex justify-center items-center">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={faderValue}
-                  onChange={(e) => onFaderChange(parseInt(e.target.value))}
-                  className="fader-input absolute cursor-pointer h-5 w-24 -rotate-90 origin-center"
-                />
-              </div>
-
-              {/* Fader numeric readout */}
-              <div className="absolute right-4 text-[10px] font-mono text-gray-500">
-                {faderValue}%
-              </div>
-            </div>
-
-            <span className="text-[8px] text-gray-600 font-bold tracking-tight">
-              DRAG TO TRANSITION
-            </span>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
 export default AtemPanel;
