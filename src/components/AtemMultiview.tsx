@@ -9,7 +9,6 @@ interface AtemMultiviewProps {
   transitionType: 'mix' | 'wipe' | 'diss';
   wipePattern: number;
   cameraStates: { [key: number]: CameraState };
-  showWbPanel?: boolean;
   playbackTime: number;
   isLive?: boolean;
   activeScenario?: 'none' | 'chairman' | 'interview' | 'watchtower';
@@ -23,7 +22,6 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
   transitionType,
   wipePattern,
   cameraStates,
-  showWbPanel = false,
   playbackTime,
   isLive = true,
   activeScenario = 'none',
@@ -54,7 +52,7 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
 
     if (sourceIdx >= 1 && sourceIdx <= 3) {
       const state = cameraStates[sourceIdx];
-      drawStageToCanvas(ctx, w, h, sourceIdx as 1 | 2 | 3, state, showWbPanel, activeScenario, true);
+      drawStageToCanvas(ctx, w, h, sourceIdx as 1 | 2 | 3, state, activeScenario, true);
     } else if (sourceIdx === 4) {
       drawMediaPlayerScreen(ctx, w, h, 'media1', playbackTime, activeScenario);
     } else if (sourceIdx === 5) {
@@ -99,7 +97,7 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
         }
       }
     });
-  }, [cameraStates, playbackTime, showWbPanel, bgImageLoaded, transitionProgress]);
+  }, [cameraStates, playbackTime, bgImageLoaded, transitionProgress]);
 
   // Render a specific source view (re-creates canvas context locally for Program/Preview)
   const renderViewport = (sourceIdx: number, idSuffix: string) => {
@@ -115,8 +113,8 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
             delete viewportRefs.current[key];
           }
         }}
-        width={320}
-        height={180}
+        width={1280}
+        height={720}
         className="w-full h-full object-cover block"
       />
     );
@@ -237,8 +235,8 @@ export const AtemMultiview: React.FC<AtemMultiviewProps> = ({
                     ref={(el) => {
                       canvasRefs.current[idx] = el;
                     }}
-                    width={160}
-                    height={90}
+                    width={640}
+                    height={360}
                     className="w-full h-full object-cover block"
                   />
                 </div>

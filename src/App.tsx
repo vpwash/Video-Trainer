@@ -283,6 +283,35 @@ function App() {
                   </div>
                 </div>
 
+                {/* PTZ Camera Selection */}
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Camera Selection Keys</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['cam1', 'cam2', 'cam3'] as const).map((field, idx) => {
+                      const isListening = bindingField?.category === 'ptz' && bindingField?.field === field;
+                      const value = keyBindings.ptz[field];
+                      return (
+                        <div
+                          key={field}
+                          className="flex items-center justify-between p-3 rounded-xl bg-gray-900/35 border border-gray-800"
+                        >
+                          <span className="text-xs text-gray-300 font-bold uppercase">Cam {idx + 1}</span>
+                          <button
+                            onClick={() => { playClick(); setBindingField({ category: 'ptz', field }); }}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold transition-all cursor-pointer min-w-[60px] text-center ${
+                              isListening
+                                ? 'bg-amber-500/20 border-amber-500 text-amber-400 ring-2 ring-amber-500/50'
+                                : 'bg-gray-800/80 hover:bg-gray-800 hover:border-cyan-500/50 text-cyan-400'
+                            }`}
+                          >
+                            {isListening ? 'Press key...' : formatKeyName(value)}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* PTZ Preset Modes */}
                 <div>
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Preset Action Modes</h4>

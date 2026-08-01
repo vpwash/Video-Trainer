@@ -14,6 +14,9 @@ export interface KeyBindings {
     zoomOut: string;
     storePreset: string;
     callPreset: string;
+    cam1: string;
+    cam2: string;
+    cam3: string;
     keypad: string[];
   };
 }
@@ -34,6 +37,9 @@ export const DEFAULT_KEY_BINDINGS: KeyBindings = {
     zoomOut: '-',
     storePreset: '/',
     callPreset: '*',
+    cam1: 'z',
+    cam2: 'x',
+    cam3: 'c',
     keypad: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
   }
 };
@@ -63,6 +69,9 @@ export function loadKeyBindings(): KeyBindings {
         zoomOut: typeof parsed.ptz?.zoomOut === 'string' ? parsed.ptz.zoomOut : DEFAULT_KEY_BINDINGS.ptz.zoomOut,
         storePreset: typeof parsed.ptz?.storePreset === 'string' ? parsed.ptz.storePreset : DEFAULT_KEY_BINDINGS.ptz.storePreset,
         callPreset: typeof parsed.ptz?.callPreset === 'string' ? parsed.ptz.callPreset : DEFAULT_KEY_BINDINGS.ptz.callPreset,
+        cam1: typeof parsed.ptz?.cam1 === 'string' ? parsed.ptz.cam1 : DEFAULT_KEY_BINDINGS.ptz.cam1,
+        cam2: typeof parsed.ptz?.cam2 === 'string' ? parsed.ptz.cam2 : DEFAULT_KEY_BINDINGS.ptz.cam2,
+        cam3: typeof parsed.ptz?.cam3 === 'string' ? parsed.ptz.cam3 : DEFAULT_KEY_BINDINGS.ptz.cam3,
         keypad: Array.isArray(parsed.ptz?.keypad) ? parsed.ptz.keypad : [...DEFAULT_KEY_BINDINGS.ptz.keypad],
       }
     };

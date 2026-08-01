@@ -3,10 +3,8 @@ export interface CameraState {
   tilt: number;      // -30 to 30
   zoom: number;      // 1 to 8 (magnification)
   exposure: number;  // 0.2 to 2.0 (brightness)
-  focus: number;     // 0 to 100 (where 50 is perfect sharp, others are blur)
+  focus: number;     // 0 to 100
   focusMode: 'auto' | 'manual';
-  wbStatus: 'default' | 'calibrating' | 'done';
-  wbTint: string;    // CSS tint filter color, e.g. 'orange', 'cyan', 'transparent'
   customBgImage?: string; // Data URL for user-uploaded custom background image
 }
 
@@ -341,7 +339,6 @@ export function drawStageToCanvas(
   height: number,
   cameraIdx: 1 | 2 | 3,
   state: CameraState,
-  showWbPanel: boolean,
   sceneType?: 'none' | 'chairman' | 'interview' | 'watchtower' | 'stage' | 'demo',
   isAtem?: boolean
 ) {
@@ -349,22 +346,40 @@ export function drawStageToCanvas(
   ctx.clearRect(0, 0, width, height);
   ctx.save();
 
-  // Apply high-quality image smoothing & image enhancement filters
+  // Apply high-quality image smoothing
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // Apply camera filters (Exposure and Focus) with image enhancement (contrast/saturation boost for crisp broadcast quality)
+  // No image filters applied - keep original image clean and crisp
+  ctx.filter = 'none';
+
+  // --- HANDLE HIGH-FIDELITY SCENARIO IMAGES (UNTRANSFORMED DRAWING PATH) ---
   const isAtemScenario = isAtem && (sceneType === 'chairman' || sceneType === 'interview' || sceneType === 'watchtower');
-  let blurAmount = 0;
-  if (state.focusMode === 'manual' && !isAtemScenario) {
-    // Blur is proportional to how far focus is from 50 (sweet spot)
-    blurAmount = Math.abs(state.focus - 50) / 5;
+  if (isAtemScenario) {
+    let imageDrawn = false;
+    let sceneFolder = '';
+    if (sceneType === 'chairman') {
+      sceneFolder = 'ChairmainIntroduction';
+    } else if (sceneType === 'interview') {
+      sceneFolder = 'Demonstration';
+    } else if (sceneType === 'watchtower') {
+      sceneFolder = 'Watchtower';
+    }
+
+    if (sceneFolder) {
+      const camSrc = `/scenarios/${sceneFolder}/cam${cameraIdx}.webp`;
+      const img = getCachedImage(camSrc);
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, 0, 0, width, height);
+        imageDrawn = true;
+      }
+    }
+
+    if (imageDrawn) {
+      ctx.restore();
+      return;
+    }
   }
-  
-  const brightnessPercent = isAtemScenario ? 100 : Math.round(state.exposure * 100);
-  
-  // Apply visual enhancement filters: brightness, sharp contrast (104%), rich color saturation (106%), and focus blur
-  ctx.filter = `brightness(${brightnessPercent}%) contrast(104%) saturate(106%) blur(${blurAmount}px)`;
 
   // Center coordinate of stage
   const centerX = width / 2;
@@ -378,37 +393,6 @@ export function drawStageToCanvas(
   // Pan and Tilt translations (scaled by zoom)
   const panOffset = -state.pan * 6 * state.zoom + angleShift;
   const tiltOffset = -state.tilt * 5 * state.zoom;
-
-  // Apply transformations: Zoom from center, then translate
-  // Apply filters via canvas context if supported
-  ctx.filter = `brightness(${brightnessPercent}%) blur(${blurAmount}px)`;
-
-  // --- HANDLE HIGH-FIDELITY SCENARIO IMAGES (UNTRANSFORMED DRAWING PATH) ---
-  if (isAtemScenario) {
-    let imageDrawn = false;
-    let sceneFolder = '';
-    if (sceneType === 'chairman') {
-      sceneFolder = 'ChairmainIntroduction';
-    } else if (sceneType === 'interview') {
-      sceneFolder = 'Demonstration';
-    } else if (sceneType === 'watchtower') {
-      sceneFolder = 'Watchtower';
-    }
-
-    if (sceneFolder) {
-      const camSrc = `/scenarios/${sceneFolder}/cam${cameraIdx}.png`;
-      const img = getCachedImage(camSrc);
-      if (img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, 0, 0, width, height);
-        imageDrawn = true;
-      }
-    }
-
-    if (imageDrawn) {
-      ctx.restore();
-      return;
-    }
-  }
 
   // Apply transformations: Zoom from center, then translate
   ctx.translate(centerX, centerY);
@@ -662,54 +646,7 @@ export function drawStageToCanvas(
     }
   }
 
-  // --- DRAW COLLAPSIBLE WHITE BALANCE PANEL ---
-  // Positioned near the speaker's head (as if held by someone standing next to them)
-  if (showWbPanel) {
-    const speakerX = lecternX;
-    const speakerY = centerY - 15;
-    const wbX = speakerX - 28;
-    const wbY = speakerY - 28;
-
-    // Draw helper arm holding the panel
-    ctx.strokeStyle = '#fbcfe8';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(wbX - 10, wbY + 30);
-    ctx.lineTo(wbX, wbY);
-    ctx.stroke();
-
-    // Draw white balance panel outer black ring
-    ctx.fillStyle = '#111827';
-    ctx.beginPath();
-    ctx.arc(wbX, wbY, 15, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw white balance inner white surface
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(wbX, wbY, 13, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw crosshair on white balance panel
-    ctx.strokeStyle = '#d1d5db';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(wbX - 10, wbY);
-    ctx.lineTo(wbX + 10, wbY);
-    ctx.moveTo(wbX, wbY - 10);
-    ctx.lineTo(wbX, wbY + 10);
-    ctx.stroke();
-  }
-
   ctx.restore();
-
-  // Apply White Balance Color Tint overlay
-  if (state.wbStatus !== 'done' && state.wbTint && state.wbTint !== 'transparent') {
-    ctx.fillStyle = state.wbTint;
-    ctx.globalCompositeOperation = 'color';
-    ctx.fillRect(0, 0, width, height);
-    ctx.globalCompositeOperation = 'source-over';
-  }
 }
 
 // Draw SMTPE Color Bars
@@ -762,15 +699,15 @@ export function drawMediaPlayerScreen(
   if (activeScenario === 'chairman') {
     mediaSrc = type === 'media1' 
       ? '/scenarios/ChairmainIntroduction/media1.mp4' 
-      : '/scenarios/ChairmainIntroduction/media2.png';
+      : '/scenarios/ChairmainIntroduction/media2.webp';
   } else if (activeScenario === 'interview') {
     mediaSrc = type === 'media1' 
       ? '/scenarios/Demonstration/media1.mp4' 
-      : '/scenarios/Demonstration/media2.png';
+      : '/scenarios/Demonstration/media2.webp';
   } else if (activeScenario === 'watchtower') {
     mediaSrc = type === 'media1' 
-      ? '/scenarios/Watchtower/media1.png' 
-      : '/scenarios/Watchtower/media2.png';
+      ? '/scenarios/Watchtower/media1.webp' 
+      : '/scenarios/Watchtower/media2.webp';
   }
 
   if (mediaSrc) {

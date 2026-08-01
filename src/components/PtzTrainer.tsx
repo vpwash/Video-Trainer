@@ -43,8 +43,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         exposure: 1.0,
         focus: 50,
         focusMode: 'auto',
-        wbStatus: 'done',
-        wbTint: 'transparent',
       },
       2: {
         pan: 0,
@@ -53,8 +51,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         exposure: 1.0,
         focus: 50,
         focusMode: 'auto',
-        wbStatus: 'done',
-        wbTint: 'transparent',
       },
       3: {
         pan: 20,
@@ -63,8 +59,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         exposure: 1.0,
         focus: 50,
         focusMode: 'auto',
-        wbStatus: 'done',
-        wbTint: 'transparent',
       },
     };
   });
@@ -79,7 +73,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert("Please select a valid image file (PNG, JPG, WEBP).");
       return;
@@ -100,7 +93,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
       }
     };
     reader.readAsDataURL(file);
-    // Reset file input value so re-uploading same file triggers change
     e.target.value = '';
   };
 
@@ -128,7 +120,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     const saved = localStorage.getItem('av-trainer-ptz-invert-tilt');
     return saved ? saved === 'true' : false;
   });
-  const [showWbPanel, setShowWbPanel] = useState<boolean>(false);
   const [presetMessage, setPresetMessage] = useState<string>('');
 
   // Joystick active movement vector
@@ -153,9 +144,8 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
   });
 
   const [presetMode, setPresetMode] = useState<'none' | 'store' | 'call'>('none');
-  const [bgImageLoaded, setBgImageLoaded] = useState(false);
 
-  // Persistence hooks to auto-save to localStorage
+  // Save state changes to localStorage
   useEffect(() => {
     localStorage.setItem('av-trainer-ptz-active-camera', activeCameraIdx.toString());
   }, [activeCameraIdx]);
@@ -163,6 +153,10 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
   useEffect(() => {
     localStorage.setItem('av-trainer-ptz-camera-states', JSON.stringify(cameraStates));
   }, [cameraStates]);
+
+  useEffect(() => {
+    localStorage.setItem('av-trainer-ptz-presets', JSON.stringify(presets));
+  }, [presets]);
 
   useEffect(() => {
     localStorage.setItem('av-trainer-ptz-joystick-speed', joystickSpeed.toString());
@@ -176,86 +170,45 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     localStorage.setItem('av-trainer-ptz-invert-tilt', invertTilt.toString());
   }, [invertTilt]);
 
+  // Main game loop for continuous PTZ movement and zoom animation
   useEffect(() => {
-    localStorage.setItem('av-trainer-ptz-presets', JSON.stringify(presets));
-  }, [presets]);
+    let animId: number;
 
-  // Pre-load PTZ background scenario images
-  useEffect(() => {
-    const imagesToLoad = [
-      '/scenarios/PTZ_Images/Stage.webp',
-      '/scenarios/PTZ_Images/StageWT.webp',
-      '/scenarios/PTZ_Images/StageDemo.webp',
-      '/scenarios/stage.jpeg',
-    ];
+    const updateLoop = () => {
+      const { dx, dy } = joystickVector.current;
+      const zoomDir = zoomDirection.current;
 
-    let loadedCount = 0;
-    imagesToLoad.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-      img.decode().then(() => {
-        loadedCount++;
-        if (loadedCount === imagesToLoad.length) {
-          setBgImageLoaded(true);
-        }
-      }).catch((err) => {
-        console.warn(`Failed to decode image ${src}:`, err);
-        setBgImageLoaded(true);
-      });
-    });
-  }, []);
+      if (dx !== 0 || dy !== 0 || zoomDir !== 0) {
+        setCameraStates((prev) => {
+          const current = prev[activeCameraIdx];
+          const speedFactor = (joystickSpeed / 4) * 0.4;
+          const zoomFactor = (zoomSpeedVal / 3) * 0.03;
 
-  // Animation frame loop for joystick movement and continuous zoom
-  useEffect(() => {
-    let animFrameId: number;
+          const tiltSign = invertTilt ? -1 : 1;
+          const newPan = Math.max(-50, Math.min(50, current.pan + dx * speedFactor));
+          const newTilt = Math.max(-30, Math.min(30, current.tilt + dy * speedFactor * tiltSign));
+          const newZoom = Math.max(1.0, Math.min(8.0, current.zoom + zoomDir * zoomFactor));
 
-    const updateCameraPhysics = () => {
-      setCameraStates((prevStates) => {
-        const activeState = prevStates[activeCameraIdx];
-        let stateChanged = false;
-        let newPan = activeState.pan;
-        let newTilt = activeState.tilt;
-        let newZoom = activeState.zoom;
-
-        // 1. Process joystick pan/tilt
-        const { dx, dy } = joystickVector.current;
-        if (dx !== 0 || dy !== 0) {
-          const moveFactor = joystickSpeed * 0.05;
-          const effectiveDy = invertTilt ? -dy : dy;
-          newPan = Math.max(-50, Math.min(50, activeState.pan + dx * moveFactor));
-          newTilt = Math.max(-30, Math.min(30, activeState.tilt + effectiveDy * moveFactor));
-          stateChanged = true;
-        }
-
-        // 2. Process zoom rocker (T/W)
-        if (zoomDirection.current !== 0) {
-          const zoomFactor = zoomSpeedVal * 0.02;
-          newZoom = Math.max(1.0, Math.min(8.0, activeState.zoom + zoomDirection.current * zoomFactor));
-          stateChanged = true;
-        }
-
-        if (stateChanged) {
           return {
-            ...prevStates,
+            ...prev,
             [activeCameraIdx]: {
-              ...activeState,
+              ...current,
               pan: newPan,
               tilt: newTilt,
               zoom: newZoom,
             },
           };
-        }
-        return prevStates;
-      });
+        });
+      }
 
-      animFrameId = requestAnimationFrame(updateCameraPhysics);
+      animId = requestAnimationFrame(updateLoop);
     };
 
-    animFrameId = requestAnimationFrame(updateCameraPhysics);
-    return () => cancelAnimationFrame(animFrameId);
+    animId = requestAnimationFrame(updateLoop);
+    return () => cancelAnimationFrame(animId);
   }, [activeCameraIdx, joystickSpeed, zoomSpeedVal, invertTilt]);
 
-  // Controller Actions
+  // Handlers for Bolin controller
   const handleJoystickMove = (dx: number, dy: number) => {
     joystickVector.current = { dx, dy };
   };
@@ -268,80 +221,19 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     zoomDirection.current = dir;
   };
 
-  const handleKnobChange = (param: 'speed' | 'zoomSpeed' | 'exposure' | 'focus', val: number) => {
+  const handleKnobChange = (param: 'speed' | 'zoomSpeed', val: number) => {
+    playClick();
     if (param === 'speed') {
       setJoystickSpeed(val);
     } else if (param === 'zoomSpeed') {
       setZoomSpeedVal(val);
-    } else {
-      setCameraStates((prev) => ({
-        ...prev,
-        [activeCameraIdx]: {
-          ...prev[activeCameraIdx],
-          [param]: val,
-        },
-      }));
     }
-  };
-
-  const handleToggleFocusMode = () => {
-    setCameraStates((prev) => {
-      const current = prev[activeCameraIdx];
-      const newMode = current.focusMode === 'auto' ? 'manual' : 'auto';
-      return {
-        ...prev,
-        [activeCameraIdx]: {
-          ...current,
-          focusMode: newMode,
-          // Reset focus to sharp 50 if going auto
-          focus: newMode === 'auto' ? 50 : current.focus,
-        },
-      };
-    });
-  };
-
-  const handleOnePushWb = () => {
-    setCameraStates((prev) => ({
-      ...prev,
-      [activeCameraIdx]: {
-        ...prev[activeCameraIdx],
-        wbStatus: 'calibrating',
-      },
-    }));
-
-    setTimeout(() => {
-      setCameraStates((prev) => {
-        const current = prev[activeCameraIdx];
-        if (current.wbStatus !== 'calibrating') return prev;
-
-        // Perform validation check for tutorial step
-        let success = true;
-        
-        // If white balance panel is not visible, fail calibration (leaves tint as is)
-        if (!showWbPanel) {
-          success = false;
-        }
-
-        return {
-          ...prev,
-          [activeCameraIdx]: {
-            ...current,
-            wbStatus: success ? 'done' : 'default',
-            wbTint: success ? 'transparent' : current.wbTint,
-          },
-        };
-      });
-
-      setPresetMessage(showWbPanel ? 'WHITE BALANCE OK' : 'WB ERR: NO REFERENCE PANEL');
-      setTimeout(() => setPresetMessage(''), 2000);
-    }, 2000);
   };
 
   const handleKeypadPress = (num: number) => {
     const camState = cameraStates[activeCameraIdx];
 
     if (presetMode === 'store') {
-      // Store current state
       setPresets((prev) => ({
         ...prev,
         [activeCameraIdx]: {
@@ -353,7 +245,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
       setPresetMode('none');
       setTimeout(() => setPresetMessage(''), 2000);
     } else if (presetMode === 'call') {
-      // Recall state
       const targetState = presets[activeCameraIdx][num];
       if (targetState) {
         setCameraStates((prev) => ({
@@ -370,7 +261,7 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     }
   };
 
-  // --- KEYBOARD SHORTCUTS (Preset & Camera Control) ---
+  // Keyboard Shortcuts
   useEffect(() => {
     const activeKeys = new Set<string>();
 
@@ -427,6 +318,24 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         setPresetMode((prev) => (prev === 'call' ? 'none' : 'call'));
         return;
       }
+      if (e.key.toLowerCase() === keyBindings.ptz.cam1.toLowerCase()) {
+        e.preventDefault();
+        playClick();
+        setActiveCameraIdx(1);
+        return;
+      }
+      if (e.key.toLowerCase() === keyBindings.ptz.cam2.toLowerCase()) {
+        e.preventDefault();
+        playClick();
+        setActiveCameraIdx(2);
+        return;
+      }
+      if (e.key.toLowerCase() === keyBindings.ptz.cam3.toLowerCase()) {
+        e.preventDefault();
+        playClick();
+        setActiveCameraIdx(3);
+        return;
+      }
       const numIdx = keyBindings.ptz.keypad.indexOf(e.key);
       if (numIdx !== -1) {
         e.preventDefault();
@@ -449,37 +358,15 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     };
   }, [presetMode, cameraStates, activeCameraIdx, presets, keyBindings]);
 
-  // --- TUTORIALS STATE ---
-  const [activeTutorial, setActiveTutorial] = useState<'none' | 'wb' | 'preset'>('none');
+  // Tutorials State
+  const [activeTutorial, setActiveTutorial] = useState<'none' | 'preset'>('none');
   const [tutorialStep, setTutorialStep] = useState<number>(0);
   const [showTutorialHelp, setShowTutorialHelp] = useState<boolean>(false);
-
-  const startWbTutorial = () => {
-    playClick();
-    setActiveTutorial('wb');
-    setTutorialStep(0);
-    // Reset Cam 2 to warm uncalibrated state
-    setCameraStates((prev) => ({
-      ...prev,
-      2: {
-        pan: 0,
-        tilt: -10, // looking down
-        zoom: 1.0, // zoom out
-        exposure: 1.2,
-        focus: 50,
-        focusMode: 'auto',
-        wbStatus: 'default',
-        wbTint: 'rgba(245, 158, 11, 0.2)', // orange tint
-      },
-    }));
-    setShowWbPanel(false);
-  };
 
   const startPresetTutorial = () => {
     playClick();
     setActiveTutorial('preset');
     setTutorialStep(0);
-    // Reset presets and camera coordinates
     setPresets((prev) => ({ ...prev, 2: {} }));
     setCameraStates((prev) => ({
       ...prev,
@@ -490,8 +377,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         exposure: 1.0,
         focus: 50,
         focusMode: 'auto',
-        wbStatus: 'done',
-        wbTint: 'transparent',
       },
     }));
   };
@@ -501,37 +386,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     setActiveTutorial('none');
     setTutorialStep(0);
   };
-
-  // Guided White Balance Steps
-  const wbSteps = [
-    {
-      title: 'Select Center Camera (F2)',
-      desc: 'Let’s perform a white balance calibration on Camera 2. Press F2 on the controller assign keys.',
-      help: 'Click the "F2" button in the assign keys row on the controller.',
-      validate: () => activeCameraIdx === 2,
-    },
-    {
-      title: 'Show the White Balance Panel',
-      desc: 'Position the collapsible white-balance panel on stage at the lectern.',
-      help: 'Click the "Show White Balance Panel" button directly under the viewfinder screen.',
-      validate: () => showWbPanel === true,
-    },
-    {
-      title: 'Frame and Zoom in on the Panel',
-      desc: 'The panel is to the left and slightly up. Use the joystick to pan left (pan ≈ -7) and tilt up (tilt ≈ 7), then use the ZOOM rocker (T) to zoom in close (zoom ≥ 4.0) so the white surface fills the screen crosshairs.',
-      help: 'Steer joystick left and up, then hold T until zoom is above 4.0. Targets: Pan (-12 to -2), Tilt (3 to 11), Zoom (≥ 4.0).',
-      validate: () => {
-        const c2 = cameraStates[2];
-        return c2.pan >= -12 && c2.pan <= -2 && c2.tilt >= 3 && c2.tilt <= 11 && c2.zoom >= 3.8;
-      },
-    },
-    {
-      title: 'Calibrate White Balance',
-      desc: 'With the white-balance panel fully framed, press the ONE PUSH WB button to initiate the camera sensor calibration.',
-      help: 'Click the "ONE PUSH WB" button on the controller. Wait 2 seconds for calibration to finish.',
-      validate: () => cameraStates[2].wbStatus === 'done',
-    },
-  ];
 
   // Guided Preset Steps
   const presetSteps = [
@@ -573,7 +427,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         const c2 = cameraStates[2];
         const target = presets[2][1];
         if (!target) return false;
-        // Verify camera animated back to the preset sweet spot
         return Math.abs(c2.pan - target.pan) < 1.0 && Math.abs(c2.tilt - target.tilt) < 1.0 && Math.abs(c2.zoom - target.zoom) < 0.2;
       },
     },
@@ -583,33 +436,26 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
   useEffect(() => {
     if (activeTutorial === 'none') return;
 
-    const steps = activeTutorial === 'wb' ? wbSteps : presetSteps;
-    const validate = steps[tutorialStep]?.validate;
+    const validate = presetSteps[tutorialStep]?.validate;
 
     if (validate && validate()) {
-      if (tutorialStep === steps.length - 1) {
-        // Tutorial finished!
+      if (tutorialStep === presetSteps.length - 1) {
         playSuccess();
         setActiveTutorial('none');
         setTutorialStep(0);
-        alert(
-          activeTutorial === 'wb'
-            ? '🎉 White Balance Calibration complete! You successfully calibrated the color temperature of the PTZ camera!'
-            : '🎉 Preset Tutorial complete! You successfully stored and recalled camera presets!'
-        );
+        alert('🎉 Preset Tutorial complete! You successfully stored and recalled camera presets!');
       } else {
-        // Next Step
         playSuccess();
         setTutorialStep((prev) => prev + 1);
         setShowTutorialHelp(false);
       }
     }
-  }, [cameraStates, activeCameraIdx, showWbPanel, presets, activeTutorial, tutorialStep]);
+  }, [cameraStates, activeCameraIdx, presets, activeTutorial, tutorialStep]);
 
   return (
-    <div className="flex flex-col gap-3 max-w-full xl:px-6 mx-auto p-2 w-full min-h-screen">
-      {/* Header Panel */}
-      <div className="flex justify-between items-center bg-[#11131e] px-3 py-2 rounded-xl border border-gray-800 shadow-md">
+    <div className="flex flex-col gap-3 w-full max-w-full px-2 md:px-4 mx-auto min-h-screen">
+      {/* Responsive Header Panel */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#11131e] px-3 py-2.5 rounded-xl border border-gray-800 shadow-md">
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToHome}
@@ -662,6 +508,7 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
             <Settings className="w-3.5 h-3.5 animate-spin-slow" />
             SETTINGS
           </button>
+
           {/* Scenario Selector */}
           <div className="flex items-center bg-[#0a0b10] border border-gray-800 rounded-lg p-0.5">
             <span className="text-[9px] font-bold text-gray-400 px-1.5 uppercase font-mono">Scenario:</span>
@@ -698,26 +545,17 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
           </div>
 
           {activeTutorial === 'none' ? (
-            <>
-              <button
-                onClick={startWbTutorial}
-                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-black font-bold text-[11px] rounded-lg shadow flex items-center gap-1 cursor-pointer transition-all"
-              >
-                <RefreshCw className="w-3 h-3" />
-                WB TUTORIAL
-              </button>
-              <button
-                onClick={startPresetTutorial}
-                className="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 active:scale-[0.98] text-black font-bold text-[11px] rounded-lg shadow flex items-center gap-1 cursor-pointer transition-all"
-              >
-                <Bookmark className="w-3 h-3" />
-                PRESET TUTORIAL
-              </button>
-            </>
+            <button
+              onClick={startPresetTutorial}
+              className="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 active:scale-[0.98] text-black font-bold text-[11px] rounded-lg shadow flex items-center gap-1 cursor-pointer transition-all"
+            >
+              <Bookmark className="w-3 h-3" />
+              PRESET TUTORIAL
+            </button>
           ) : (
-            <div className="flex items-center gap-2 bg-amber-950/40 border border-amber-800/50 rounded-lg px-2 py-1">
-              <span className="w-1.5 h-1.5 rounded-full led-amber led-pulse"></span>
-              <span className="text-amber-400 font-bold text-[10px] uppercase tracking-wide">
+            <div className="flex items-center gap-2 bg-cyan-950/40 border border-cyan-800/50 rounded-lg px-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full led-cyan led-pulse"></span>
+              <span className="text-cyan-400 font-bold text-[10px] uppercase tracking-wide">
                 TUTORIAL ACTIVE ({activeTutorial.toUpperCase()})
               </span>
               <button
@@ -731,43 +569,41 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
         </div>
       </div>
 
-      {/* Top 3 Side-by-Side Clear Camera Screens (Cam 1, Cam 2, Cam 3) */}
-      <div className="grid grid-cols-3 gap-3 w-full max-w-5xl mx-auto">
+      {/* Top 3 Full-Width Large Camera Screens (Cam 1, Cam 2, Cam 3) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full flex-grow">
         {([1, 2, 3] as const).map((idx) => {
           const isActive = activeCameraIdx === idx;
           return (
             <div
               key={idx}
               onClick={() => { playClick(); setActiveCameraIdx(idx); }}
-              className={`flex flex-col gap-1 p-1.5 rounded-lg bg-[#11131e] border-2 transition-all duration-150 cursor-pointer ${
+              className={`flex flex-col gap-2 p-2 rounded-xl bg-[#11131e] border-2 transition-all duration-150 cursor-pointer shadow-lg ${
                 isActive
-                  ? 'border-cyan-500 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-500/40'
+                  ? 'border-cyan-500 shadow-cyan-500/20 ring-2 ring-cyan-500/50'
                   : 'border-gray-800 hover:border-gray-600 opacity-90 hover:opacity-100'
               }`}
             >
-              <div className="flex justify-between items-center px-1">
-                <span className={`text-[11px] font-bold font-mono tracking-wider px-1.5 py-0.2 rounded ${
+              <div className="flex justify-between items-center px-2">
+                <span className={`text-xs font-bold font-mono tracking-wider px-2 py-0.5 rounded ${
                   isActive ? 'bg-cyan-500 text-black' : 'bg-gray-800 text-gray-300'
                 }`}>
-                  Cam {idx}
+                  Camera 0{idx}
                 </span>
                 {isActive ? (
-                  <span className="text-[9px] font-bold text-cyan-400 font-mono flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                    ACTIVE
+                  <span className="text-[10px] font-bold text-cyan-400 font-mono flex items-center gap-1.5 bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    ACTIVE CONTROLLER FEED
                   </span>
                 ) : (
-                  <span className="text-[9px] text-gray-500 font-mono">SELECT</span>
+                  <span className="text-[10px] text-gray-500 font-mono">CLICK TO SELECT</span>
                 )}
               </div>
 
               <CameraViewport
                 cameraIdx={idx}
                 cameraState={cameraStates[idx]}
-                showWbPanel={showWbPanel && activeCameraIdx === idx}
                 isLive={false}
                 activeScenario={activeScenario}
-                bgImageLoaded={bgImageLoaded}
               />
             </div>
           );
@@ -776,7 +612,7 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
 
       {/* Bottom Section: Hardware Controller Surface & Status */}
       <div className="grid grid-cols-12 gap-6 items-start w-full">
-        {/* Main Condensed Hardware Controller Surface (8 cols) */}
+        {/* Main Hardware Controller Surface */}
         <div className="col-span-12 lg:col-span-8">
           <BolinController
             activeCameraIdx={activeCameraIdx}
@@ -786,8 +622,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
             onJoystickRelease={handleJoystickRelease}
             onZoomPress={handleZoomPress}
             onKnobChange={handleKnobChange}
-            onToggleFocusMode={handleToggleFocusMode}
-            onOnePushWb={handleOnePushWb}
             onKeypadPress={handleKeypadPress}
             onPresetModeToggle={() => setPresetMode((prev) => (prev === 'store' ? 'none' : 'store'))}
             onCallModeToggle={() => setPresetMode((prev) => (prev === 'call' ? 'none' : 'call'))}
@@ -798,55 +632,52 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
             invertTilt={invertTilt}
             onToggleInvertTilt={() => setInvertTilt((prev) => !prev)}
             activeScenario={activeScenario}
-            bgImageLoaded={bgImageLoaded}
-            showWbPanel={showWbPanel}
           />
         </div>
 
-        {/* Right Sidebar: Active Tutorial & Telemetry (4 cols) */}
+        {/* Right Sidebar: Active Tutorial & Telemetry */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
           {/* Active Tutorial Card */}
           {activeTutorial !== 'none' && (
-            <div className="bg-[#1c1811] border border-amber-700/40 rounded-xl p-5 shadow-xl flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-amber-950/50 pb-2">
-                <span className="text-amber-500 font-bold text-xs uppercase tracking-wide">
-                  Tutorial Step {tutorialStep + 1} of{' '}
-                  {activeTutorial === 'wb' ? wbSteps.length : presetSteps.length}
+            <div className="bg-[#1c1811] border border-cyan-700/40 rounded-xl p-5 shadow-xl flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-cyan-950/50 pb-2">
+                <span className="text-cyan-500 font-bold text-xs uppercase tracking-wide">
+                  Tutorial Step {tutorialStep + 1} of {presetSteps.length}
                 </span>
-                <span className="text-amber-600 text-[10px] font-mono">PTZ Trainer</span>
+                <span className="text-cyan-600 text-[10px] font-mono">PTZ Trainer</span>
               </div>
 
               <div>
                 <h3 className="text-white font-bold text-sm leading-tight flex items-center gap-2">
-                  <ArrowRight className="w-4 h-4 text-amber-500 shrink-0" />
-                  {activeTutorial === 'wb' ? wbSteps[tutorialStep].title : presetSteps[tutorialStep].title}
+                  <ArrowRight className="w-4 h-4 text-cyan-500 shrink-0" />
+                  {presetSteps[tutorialStep].title}
                 </h3>
                 <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                  {activeTutorial === 'wb' ? wbSteps[tutorialStep].desc : presetSteps[tutorialStep].desc}
+                  {presetSteps[tutorialStep].desc}
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-amber-950/50 flex flex-col gap-2">
+              <div className="pt-2 border-t border-cyan-950/50 flex flex-col gap-2">
                 <button
                   onClick={() => {
                     playClick();
                     setShowTutorialHelp((prev) => !prev);
                   }}
-                  className="text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer"
+                  className="text-xs text-cyan-500 hover:text-cyan-400 flex items-center gap-1 cursor-pointer"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
                   {showTutorialHelp ? 'Hide Hint' : 'Show Hint'}
                 </button>
                 {showTutorialHelp && (
-                  <div className="bg-[#0f0e0b] border border-amber-900/50 p-2.5 rounded text-[11px] text-amber-400/90 leading-normal font-mono select-text">
-                    💡 {activeTutorial === 'wb' ? wbSteps[tutorialStep].help : presetSteps[tutorialStep].help}
+                  <div className="bg-[#0f0e0b] border border-cyan-900/50 p-2.5 rounded text-[11px] text-cyan-400/90 leading-normal font-mono select-text">
+                    💡 {presetSteps[tutorialStep].help}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Calibration guide card */}
+          {/* Telemetry Display Card */}
           <div className="bg-[#11131e] border border-gray-800 rounded-xl p-3 shadow-xl flex flex-col gap-3">
             <h2 className="text-white font-bold text-xs border-b border-gray-800 pb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
               <RefreshCw className="w-3.5 h-3.5 text-sky-400" />
@@ -872,12 +703,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
               <div className="flex justify-between py-0.5 border-b border-gray-900">
                 <span className="text-gray-500 font-bold uppercase">ZOOM LVL</span>
                 <span className="text-white">{cameraStates[activeCameraIdx].zoom.toFixed(1)}x</span>
-              </div>
-              <div className="flex justify-between py-0.5 border-b border-gray-900">
-                <span className="text-gray-500 font-bold uppercase">WB CAL</span>
-                <span className={cameraStates[activeCameraIdx].wbStatus === 'done' ? 'text-emerald-400' : 'text-rose-400'}>
-                  {cameraStates[activeCameraIdx].wbStatus.toUpperCase()}
-                </span>
               </div>
               <div className="flex justify-between py-0.5">
                 <span className="text-gray-500 font-bold uppercase">PRESETS</span>
@@ -922,6 +747,14 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-gray-900 pt-1">
+                <span className="text-gray-400">Select Cam 1 / 2 / 3</span>
+                <span className="flex gap-1">
+                  <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-1.5 py-0.2 rounded font-mono text-[9px]">{formatKeyName(keyBindings.ptz.cam1)}</kbd>
+                  <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-1.5 py-0.2 rounded font-mono text-[9px]">{formatKeyName(keyBindings.ptz.cam2)}</kbd>
+                  <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-1.5 py-0.2 rounded font-mono text-[9px]">{formatKeyName(keyBindings.ptz.cam3)}</kbd>
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t border-gray-900 pt-1">
                 <span className="text-gray-400">Store / Call Toggle</span>
                 <span className="flex gap-1">
                   <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-1.5 py-0.2 rounded font-mono text-[9px]">{formatKeyName(keyBindings.ptz.storePreset)}</kbd>
@@ -940,26 +773,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Stage Calibration Card Controls (Below Telemetry) */}
-          <div className="bg-[#0d0e14] p-2.5 rounded-xl border border-gray-800 flex justify-between items-center w-full">
-            <span className="text-[10px] text-gray-400 font-medium select-text">
-              Stage Calibration Card:
-            </span>
-            <button
-              onClick={() => {
-                playClick();
-                setShowWbPanel((prev) => !prev);
-              }}
-              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                showWbPanel
-                  ? 'bg-amber-600 text-black shadow-md border border-amber-500'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-              }`}
-            >
-              {showWbPanel ? 'Hide WB Card' : 'Show WB Card'}
-            </button>
           </div>
         </div>
       </div>

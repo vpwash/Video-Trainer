@@ -29,12 +29,19 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
     });
 
     const scenarioImages = [
-      '/scenarios/Interview mid shot.png',
-      '/scenarios/Demonstration Shot.png',
-      '/scenarios/transitionshot.png',
-      '/scenarios/speaker mid close up.png',
-      '/scenarios/chairman_cam3.png',
-      '/scenarios/interview_wide.png'
+      '/scenarios/ChairmainIntroduction/cam1.webp',
+      '/scenarios/ChairmainIntroduction/cam2.webp',
+      '/scenarios/ChairmainIntroduction/cam3.webp',
+      '/scenarios/ChairmainIntroduction/media2.webp',
+      '/scenarios/Demonstration/cam1.webp',
+      '/scenarios/Demonstration/cam2.webp',
+      '/scenarios/Demonstration/cam3.webp',
+      '/scenarios/Demonstration/media2.webp',
+      '/scenarios/Watchtower/cam1.webp',
+      '/scenarios/Watchtower/cam2.webp',
+      '/scenarios/Watchtower/cam3.webp',
+      '/scenarios/Watchtower/media1.webp',
+      '/scenarios/Watchtower/media2.webp',
     ];
     scenarioImages.forEach(src => {
       const pImg = new Image();
@@ -68,9 +75,9 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
 
   // Default camera states for multiview simulation
   const [cameraStates] = useState<{ [key: number]: CameraState }>({
-    1: { pan: -15, tilt: 2, zoom: 1.5, exposure: 1.0, focus: 50, focusMode: 'auto', wbStatus: 'done', wbTint: 'transparent' },
-    2: { pan: 0, tilt: -1, zoom: 1.2, exposure: 1.0, focus: 50, focusMode: 'auto', wbStatus: 'done', wbTint: 'transparent' },
-    3: { pan: 15, tilt: 3, zoom: 1.5, exposure: 1.0, focus: 50, focusMode: 'auto', wbStatus: 'done', wbTint: 'transparent' },
+    1: { pan: -15, tilt: 2, zoom: 1.5, exposure: 1.0, focus: 50, focusMode: 'auto' },
+    2: { pan: 0, tilt: -1, zoom: 1.2, exposure: 1.0, focus: 50, focusMode: 'auto' },
+    3: { pan: 15, tilt: 3, zoom: 1.5, exposure: 1.0, focus: 50, focusMode: 'auto' },
   });
 
   // Playback timer loop
@@ -313,8 +320,8 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
 
       {/* Main Grid Layout: Left Column (Multiview + UI Controls), Right Column (Keyboard Shortcuts & Quick Reference) */}
       <div className="grid grid-cols-12 gap-5 items-start">
-        {/* Left Column (8 cols): Multiview monitor & UI controls stacked vertically (Left-justified) */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 w-[90%] mr-auto">
+        {/* Left Column: Multiview monitor & UI controls stacked vertically (scaled down 10%) */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 w-[90%]">
           {/* Multiview Monitor (Exact same width as UI Controls panel below) */}
           <div className="w-full bg-[#11131e] border border-gray-800 rounded-xl p-2.5 md:p-3 shadow-2xl overflow-hidden">
             <AtemMultiview
