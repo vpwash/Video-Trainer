@@ -3,7 +3,7 @@ import CameraViewport from './CameraViewport';
 import BolinController from './BolinController';
 import type { CameraState } from '../utils/canvasRenderer';
 import { useAudio } from '../hooks/useAudio';
-import { HelpCircle, RefreshCw, Bookmark, ArrowRight, Home, Settings } from 'lucide-react';
+import { HelpCircle, RefreshCw, Bookmark, ArrowRight, Home, Settings, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { type KeyBindings, formatKeyName } from '../utils/keyBindings';
 
 interface PtzTrainerProps {
@@ -71,6 +71,49 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
 
   // Active Scenario state
   const [activeScenario, setActiveScenario] = useState<'stage' | 'watchtower' | 'demo'>('stage');
+
+  // File input ref for user-uploaded custom background images
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert("Please select a valid image file (PNG, JPG, WEBP).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setCameraStates((prev) => ({
+          ...prev,
+          [activeCameraIdx]: {
+            ...prev[activeCameraIdx],
+            customBgImage: dataUrl,
+          },
+        }));
+        playSuccess();
+      }
+    };
+    reader.readAsDataURL(file);
+    // Reset file input value so re-uploading same file triggers change
+    e.target.value = '';
+  };
+
+  const handleClearCustomImage = () => {
+    setCameraStates((prev) => ({
+      ...prev,
+      [activeCameraIdx]: {
+        ...prev[activeCameraIdx],
+        customBgImage: undefined,
+      },
+    }));
+    playClick();
+  };
 
   // Controls settings
   const [joystickSpeed, setJoystickSpeed] = useState<number>(() => {
@@ -582,6 +625,36 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
 
         {/* Action / Tutorials / Scenarios Triggers */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Hidden File Input for Custom Background Images */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            accept="image/*"
+            className="hidden"
+          />
+
+          {/* Upload Custom Image Button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload custom background image for active PTZ camera feed"
+            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold text-[11px] rounded-lg shadow flex items-center gap-1.5 cursor-pointer transition-all border border-emerald-500/50"
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            UPLOAD IMAGE
+          </button>
+
+          {cameraStates[activeCameraIdx]?.customBgImage && (
+            <button
+              onClick={handleClearCustomImage}
+              title="Reset to default scenario image"
+              className="px-2 py-1 bg-red-950/60 hover:bg-red-800 text-red-300 text-[10px] font-bold rounded-lg border border-red-700 flex items-center gap-1 cursor-pointer transition-all"
+            >
+              <Trash2 className="w-3 h-3" />
+              RESET IMAGE
+            </button>
+          )}
+
           <button
             onClick={onOpenSettings}
             className="px-3 py-1 bg-gray-800 hover:bg-gray-700 active:scale-[0.98] text-gray-200 font-bold text-[11px] rounded-lg shadow flex items-center gap-1.5 cursor-pointer transition-all border border-gray-700"

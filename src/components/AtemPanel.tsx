@@ -75,21 +75,19 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
   };
 
   return (
-    <div className="bg-[#383a42] border-4 border-[#25272e] rounded-xl p-6 shadow-2xl w-full text-gray-300 font-sans select-none relative">
-      {/* Top panel bezel shine */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 rounded-t-lg"></div>
-
-      <div className="flex gap-6 items-stretch">
-        {/* Left Side: Program and Preset Bus Rows */}
-        <div className="flex-grow flex flex-col gap-5">
+    <div className="bg-[#383a42] border-4 border-[#1e202b] rounded-lg p-3 shadow-2xl w-full text-white font-sans">
+      {/* Outer Shell Wrapper */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Left Side: Program & Preset Bus Rows */}
+        <div className="flex-1 flex flex-col gap-3">
           {/* PROGRAM BUS */}
           <div className="flex flex-col">
             {/* Divider Line with PROGRAM Label */}
-            <div className="relative flex items-center justify-center mb-2">
+            <div className="relative flex items-center justify-center mb-1">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-[#7a7c85]"></div>
               </div>
-              <span className="relative bg-[#383a42] px-4 text-[10px] font-bold tracking-widest text-white/80">
+              <span className="relative bg-[#383a42] px-3 text-[9px] font-bold tracking-widest text-white/80">
                 PROGRAM
               </span>
             </div>
@@ -102,14 +100,14 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
                   <button
                     key={`pgm-${inp.idx}`}
                     onClick={() => handleProgramClick(inp.idx)}
-                    className={`h-14 rounded-none flex flex-col items-center justify-center font-bold transition-all duration-100 cursor-pointer shadow-[1px_1px_3px_rgba(0,0,0,0.4)] ${
+                    className={`h-10 rounded-none flex flex-col items-center justify-center font-bold transition-all duration-100 cursor-pointer shadow-[1px_1px_3px_rgba(0,0,0,0.4)] ${
                       isActive
-                        ? 'bg-[#e11d48] text-white border-2 border-red-700 active:scale-[0.98]'
-                        : 'bg-[#cccccc] border-2 border-gray-400 text-black hover:bg-[#b5b5b5]'
+                        ? 'bg-red-700 text-white border-2 border-red-400 active:scale-[0.98]'
+                        : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]'
                     }`}
                   >
                     {inp.label.split(' ').map((part, i) => (
-                      <span key={i} className="text-[9px] uppercase tracking-tight leading-tight font-extrabold w-full text-center px-0.5 truncate">
+                      <span key={i} className="text-[8px] uppercase tracking-tight leading-none font-extrabold w-full text-center px-0.5 truncate">
                         {part}
                       </span>
                     ))}
@@ -122,11 +120,11 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
           {/* PRESET BUS */}
           <div className="flex flex-col">
             {/* Divider Line with PRESET Label */}
-            <div className="relative flex items-center justify-center mb-2">
+            <div className="relative flex items-center justify-center mb-1">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-[#7a7c85]"></div>
               </div>
-              <span className="relative bg-[#383a42] px-4 text-[10px] font-bold tracking-widest text-white/80">
+              <span className="relative bg-[#383a42] px-3 text-[9px] font-bold tracking-widest text-white/80">
                 PRESET
               </span>
             </div>
@@ -139,14 +137,14 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
                   <button
                     key={`prv-${inp.idx}`}
                     onClick={() => handlePreviewClick(inp.idx)}
-                    className={`h-14 rounded-none flex flex-col items-center justify-center font-bold transition-all duration-100 cursor-pointer shadow-[1px_1px_3px_rgba(0,0,0,0.4)] ${
+                    className={`h-10 rounded-none flex flex-col items-center justify-center font-bold transition-all duration-100 cursor-pointer shadow-[1px_1px_3px_rgba(0,0,0,0.4)] ${
                       isActive
-                        ? 'bg-white text-black border-2 border-gray-300 active:scale-[0.98]'
-                        : 'bg-[#cccccc] border-2 border-gray-400 text-black hover:bg-[#b5b5b5]'
+                        ? 'bg-green-700 text-white border-2 border-green-400 active:scale-[0.98]'
+                        : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]'
                     }`}
                   >
                     {inp.label.split(' ').map((part, i) => (
-                      <span key={i} className="text-[9px] uppercase tracking-tight leading-tight font-extrabold w-full text-center px-0.5 truncate">
+                      <span key={i} className="text-[8px] uppercase tracking-tight leading-none font-extrabold w-full text-center px-0.5 truncate">
                         {part}
                       </span>
                     ))}
@@ -156,14 +154,14 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
             </div>
 
             {/* AUX Labels below the first three Preset buttons */}
-            <div className="grid grid-cols-10 gap-0 mt-2">
-              <div className="text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+            <div className="grid grid-cols-10 gap-0 mt-1">
+              <div className="text-center text-[8px] font-bold uppercase tracking-wider text-white/70">
                 AUX PGM
               </div>
-              <div className="text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+              <div className="text-center text-[8px] font-bold uppercase tracking-wider text-white/70">
                 AUX PV
               </div>
-              <div className="text-center text-[9px] font-bold uppercase tracking-wider text-white/70">
+              <div className="text-center text-[8px] font-bold uppercase tracking-wider text-white/70">
                 AUX CLN
               </div>
               {/* Remaining 7 columns are empty */}
@@ -173,14 +171,15 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
         </div>
 
         {/* Right Side: Transition Control Panel */}
-        <div className="w-72 flex flex-col justify-between py-1 pl-6 border-l border-[#565963] gap-4">
+        <div className="w-full lg:w-56 flex flex-col justify-between py-0.5 lg:pl-4 border-t lg:border-t-0 lg:border-l border-[#565963] gap-2 pt-2 lg:pt-0">
           {/* Transition Type Selectors (Top Row) */}
-          <div className="flex flex-col gap-1.5 justify-center flex-grow">
-            <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-1 justify-center">
+            <span className="text-[9px] font-bold tracking-widest text-white/70 text-center uppercase">TRANSITION TYPE</span>
+            <div className="grid grid-cols-3 gap-1.5">
               {/* DISS Button */}
               <button
                 onClick={() => handleTransTypeClick('diss')}
-                className={`h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] cursor-pointer transition-all duration-100 ${
+                className={`h-10 rounded-sm flex items-center justify-center font-bold text-[10px] shadow-[1px_1px_3px_rgba(0,0,0,0.4)] cursor-pointer transition-all duration-100 ${
                   transitionType === 'diss' || transitionType === 'mix'
                     ? 'bg-[#22c55e] border-2 border-green-700 text-black'
                     : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]'
@@ -192,7 +191,7 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
               {/* WIPE Button */}
               <button
                 onClick={() => handleTransTypeClick('wipe')}
-                className={`h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] cursor-pointer transition-all duration-100 ${
+                className={`h-10 rounded-sm flex items-center justify-center font-bold text-[10px] shadow-[1px_1px_3px_rgba(0,0,0,0.4)] cursor-pointer transition-all duration-100 ${
                   transitionType === 'wipe'
                     ? 'bg-[#22c55e] border-2 border-green-700 text-black'
                     : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]'
@@ -203,8 +202,8 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
 
               {/* DVE Button */}
               <button
-                className="h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]"
-                onClick={() => handleTransTypeClick('diss')} // Clicking DVE falls back to Dissolve in this build
+                className="h-10 rounded-sm flex items-center justify-center font-bold text-[10px] shadow-[1px_1px_3px_rgba(0,0,0,0.4)] bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5]"
+                onClick={() => handleTransTypeClick('diss')}
               >
                 DVE
               </button>
@@ -212,12 +211,13 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
           </div>
 
           {/* Action Trigger Buttons (Bottom Row) */}
-          <div className="flex flex-col gap-1.5 justify-center flex-grow">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1 justify-center">
+            <span className="text-[9px] font-bold tracking-widest text-white/70 text-center uppercase">TRANSITION EXECUTE</span>
+            <div className="grid grid-cols-2 gap-2">
               {/* CUT Button */}
               <button
                 onClick={() => onCut()}
-                className="h-14 rounded-sm flex items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5] cursor-pointer active:scale-[0.98]"
+                className="h-10 rounded-sm flex items-center justify-center font-bold text-[11px] shadow-[1px_1px_3px_rgba(0,0,0,0.4)] bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5] cursor-pointer active:scale-[0.98]"
               >
                 CUT
               </button>
@@ -226,14 +226,14 @@ export const AtemPanel: React.FC<AtemPanelProps> = ({
               <button
                 onClick={() => onAuto()}
                 disabled={isAutoTransitioning}
-                className={`h-14 rounded-sm flex flex-col items-center justify-center font-bold text-xs shadow-[1px_1px_3px_rgba(0,0,0,0.4)] transition-all duration-100 ${
+                className={`h-10 rounded-sm flex flex-col items-center justify-center font-bold text-[11px] shadow-[1px_1px_3px_rgba(0,0,0,0.4)] transition-all duration-100 ${
                   isAutoTransitioning
                     ? 'bg-amber-600/30 border border-amber-600 text-amber-300 led-pulse cursor-not-allowed'
                     : 'bg-[#cccccc] border border-gray-400 text-black hover:bg-[#b5b5b5] cursor-pointer active:scale-[0.98]'
                 }`}
               >
-                <span className="text-[10px] leading-tight font-extrabold">AUTO</span>
-                <span className="text-[10px] leading-tight font-extrabold">TRANS</span>
+                <span className="text-[9px] leading-tight font-extrabold">AUTO</span>
+                <span className="text-[9px] leading-tight font-extrabold">TRANS</span>
               </button>
             </div>
           </div>

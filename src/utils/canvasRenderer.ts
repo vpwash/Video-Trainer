@@ -7,6 +7,7 @@ export interface CameraState {
   focusMode: 'auto' | 'manual';
   wbStatus: 'default' | 'calibrating' | 'done';
   wbTint: string;    // CSS tint filter color, e.g. 'orange', 'cyan', 'transparent'
+  customBgImage?: string; // Data URL for user-uploaded custom background image
 }
 
 // Module-level cache for scenario images
@@ -50,6 +51,8 @@ export function getCachedVideo(src: string): HTMLVideoElement {
 }
 
 function drawMediaFile(ctx: CanvasRenderingContext2D, src: string, w: number, h: number) {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   if (src.endsWith('.mp4')) {
     const video = getCachedVideo(src);
     ctx.drawImage(video, 0, 0, w, h);
@@ -334,7 +337,11 @@ export function drawStageToCanvas(
   ctx.clearRect(0, 0, width, height);
   ctx.save();
 
-  // Apply camera filters (Exposure and Focus)
+  // Apply high-quality image smoothing & image enhancement filters
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Apply camera filters (Exposure and Focus) with image enhancement (contrast/saturation boost for crisp broadcast quality)
   const isAtemScenario = isAtem && (sceneType === 'chairman' || sceneType === 'interview' || sceneType === 'watchtower');
   let blurAmount = 0;
   if (state.focusMode === 'manual' && !isAtemScenario) {
@@ -344,8 +351,8 @@ export function drawStageToCanvas(
   
   const brightnessPercent = isAtemScenario ? 100 : Math.round(state.exposure * 100);
   
-  // Apply filters via canvas context if supported
-  ctx.filter = `brightness(${brightnessPercent}%) blur(${blurAmount}px)`;
+  // Apply visual enhancement filters: brightness, sharp contrast (104%), rich color saturation (106%), and focus blur
+  ctx.filter = `brightness(${brightnessPercent}%) contrast(104%) saturate(106%) blur(${blurAmount}px)`;
 
   // Center coordinate of stage
   const centerX = width / 2;
@@ -414,7 +421,17 @@ export function drawStageToCanvas(
   const scenarioBgImg = getCachedImage(ptzBgSrc);
   const fallbackStageImg = getCachedImage('/scenarios/stage.jpeg');
 
-  if (scenarioBgImg.complete && scenarioBgImg.naturalWidth > 0) {
+  if (state.customBgImage) {
+    const customImg = getCachedImage(state.customBgImage);
+    if (customImg.complete && customImg.naturalWidth > 0) {
+      ctx.drawImage(customImg, 0, 0, width, height);
+      drawVectorStage = false;
+    } else {
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, width, height);
+      drawVectorStage = false;
+    }
+  } else if (scenarioBgImg.complete && scenarioBgImg.naturalWidth > 0) {
     ctx.drawImage(scenarioBgImg, 0, 0, width, height);
     drawVectorStage = false;
   } else if (fallbackStageImg.complete && fallbackStageImg.naturalWidth > 0) {

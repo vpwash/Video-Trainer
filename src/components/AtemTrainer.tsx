@@ -311,69 +311,54 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
         </div>
       </div>
 
-      {/* Main Grid Layout - Side-by-Side on LG screens */}
-      <div className="grid grid-cols-12 gap-6 items-start">
-        {/* Left Column: Switcher Screen & Info (5 columns on large displays) */}
-        <div className="col-span-12 lg:col-span-5 flex flex-col gap-5">
-          {/* Multiview display */}
-          <AtemMultiview
-            programSource={programSource}
-            previewSource={previewSource}
-            transitionProgress={transitionProgress}
-            transitionType={transitionType}
-            wipePattern={wipePattern}
-            cameraStates={cameraStates}
-            playbackTime={playbackTime}
-            isLive={programSource !== 8 && transitionProgress === 0}
-            activeScenario={activeScenario}
-            bgImageLoaded={bgImageLoaded}
-          />
-
-
-
-          {/* Quick Guide Card */}
-          <div className="bg-[#11131e] border border-gray-800 rounded-xl p-5 shadow-xl flex flex-col gap-4">
-            <h2 className="text-white font-bold text-sm border-b border-gray-800 pb-2 flex items-center gap-2 uppercase tracking-wide">
-              <AlertCircle className="w-4 h-4 text-sky-400" />
-              Video Switcher Reference
-            </h2>
-            <div className="text-xs text-gray-400 flex flex-col gap-3 leading-relaxed">
-              <div>
-                <strong className="text-gray-300 block mb-1">PROGRAM BUS</strong>
-                Selects which input is sent live. Active buttons glow <span className="text-red-500 font-bold">RED</span>.
-              </div>
-              <div>
-                <strong className="text-gray-300 block mb-1">PREVIEW BUS</strong>
-                Selects which input is staged for transition. Active buttons glow <span className="text-green-500 font-bold">GREEN</span>.
-              </div>
-              <div>
-                <strong className="text-gray-300 block mb-1">CUT & AUTO</strong>
-                CUT triggers an immediate swap. AUTO does a smooth transition over 1 second.
-              </div>
-              <div>
-                <strong className="text-gray-300 block mb-1">T-BAR FADER</strong>
-                Allows full manual control over fades. Drag to 100% to swap program feeds.
-              </div>
-              <div className="pt-2 border-t border-gray-800">
-                <strong className="text-gray-300 block mb-1">WIRING SCHEME</strong>
-                <ul className="list-disc pl-4 space-y-1 mt-1 text-gray-500 font-mono text-[10px]">
-                  <li>Input 1: Cam 1 (Stage R)</li>
-                  <li>Input 2: Cam 2 (PTZ CTR)</li>
-                  <li>Input 3: Cam 3 (Stage L)</li>
-                  <li>Input 4: Media 1</li>
-                  <li>Input 5: Media 2 (VLC Bk)</li>
-                  <li>Input 8: BLACK</li>
-                </ul>
-              </div>
-            </div>
+      {/* Main Grid Layout: Left Column (Multiview + UI Controls), Right Column (Keyboard Shortcuts & Quick Reference) */}
+      <div className="grid grid-cols-12 gap-5 items-start">
+        {/* Left Column (8 cols): Multiview monitor & UI controls stacked vertically (Left-justified) */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 w-[90%] mr-auto">
+          {/* Multiview Monitor (Exact same width as UI Controls panel below) */}
+          <div className="w-full bg-[#11131e] border border-gray-800 rounded-xl p-2.5 md:p-3 shadow-2xl overflow-hidden">
+            <AtemMultiview
+              programSource={programSource}
+              previewSource={previewSource}
+              transitionProgress={transitionProgress}
+              transitionType={transitionType}
+              wipePattern={wipePattern}
+              cameraStates={cameraStates}
+              playbackTime={playbackTime}
+              isLive={programSource !== 8 && transitionProgress === 0}
+              activeScenario={activeScenario}
+              bgImageLoaded={bgImageLoaded}
+            />
           </div>
 
+          {/* Switcher Hardware Panel Controls */}
+          <div className="w-full">
+            <AtemPanel
+              programSource={programSource}
+              previewSource={previewSource}
+              transitionType={transitionType}
+              wipePattern={wipePattern}
+              faderValue={faderValue}
+              isAutoTransitioning={isAutoTransitioning}
+              onSelectProgram={setProgramSource}
+              onSelectPreview={setPreviewSource}
+              onCut={handleCut}
+              onAuto={handleAuto}
+              onSelectTransitionType={setTransitionType}
+              onSelectWipePattern={setWipePattern}
+              onFaderChange={handleFaderChange}
+            />
+          </div>
+        </div>
+
+        {/* Right Column (4 cols): Keyboard Shortcuts & Switcher Quick Reference starting right under header */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
           {/* Keyboard Shortcuts Card */}
-          <div className="bg-[#11131e] border border-gray-800 rounded-xl p-5 shadow-xl flex flex-col gap-3">
-            <h2 className="text-white font-bold text-sm border-b border-gray-800 pb-2 uppercase tracking-wide flex items-center gap-2">
+          <div className="bg-[#11131e] border border-gray-800 rounded-xl p-3.5 shadow-xl flex flex-col gap-2.5">
+            <h2 className="text-white font-bold text-xs border-b border-gray-800 pb-1.5 uppercase tracking-wide flex items-center gap-1.5">
               <span className="text-sky-400">⌨</span> Keyboard Shortcuts
             </h2>
-            <div className="flex flex-col gap-2 text-[11px]">
+            <div className="flex flex-col gap-1.5 text-[11px]">
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">CUT</span>
                 <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded font-mono text-[10px]">{formatKeyName(keyBindings.atem.cut)}</kbd>
@@ -382,8 +367,8 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
                 <span className="text-gray-400">AUTO Dissolve</span>
                 <kbd className="bg-gray-800 border border-gray-600 text-gray-200 px-2 py-0.5 rounded font-mono text-[10px]">{formatKeyName(keyBindings.atem.auto)}</kbd>
               </div>
-              <div className="border-t border-gray-800 pt-2 mt-1">
-                <p className="text-gray-500 mb-1.5 font-semibold uppercase tracking-wide text-[9px]">Program Bus (Live)</p>
+              <div className="border-t border-gray-800/80 pt-1.5 mt-0.5">
+                <p className="text-gray-500 mb-1 font-semibold uppercase tracking-wide text-[9px]">Program Bus (Live)</p>
                 <div className="grid grid-cols-8 gap-1">
                   {keyBindings.atem.program.map((k, i) => {
                     const sourceIdx = [8, 1, 2, 3, 4, 5, 6, 7][i] ?? (i + 1);
@@ -393,14 +378,14 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
                         <kbd className={`w-full text-center bg-red-950/60 border border-red-800/60 text-red-300 px-1 py-0.5 rounded font-mono text-[9px] ${
                           programSource === sourceIdx ? 'ring-1 ring-red-500 bg-red-700/60' : ''
                         }`}>{formatKeyName(k)}</kbd>
-                        <span className="text-gray-600 text-[8px]">{labels[i] ?? (i + 1)}</span>
+                        <span className="text-gray-600 text-[8px] truncate max-w-full">{labels[i] ?? (i + 1)}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-              <div className="border-t border-gray-800 pt-2">
-                <p className="text-gray-500 mb-1.5 font-semibold uppercase tracking-wide text-[9px]">Preview Bus</p>
+              <div className="border-t border-gray-800/80 pt-1.5">
+                <p className="text-gray-500 mb-1 font-semibold uppercase tracking-wide text-[9px]">Preview Bus</p>
                 <div className="grid grid-cols-8 gap-1">
                   {keyBindings.atem.preview.map((k, i) => {
                     const sourceIdx = [8, 1, 2, 3, 4, 5, 6, 7][i] ?? (i + 1);
@@ -410,7 +395,7 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
                         <kbd className={`w-full text-center bg-green-950/60 border border-green-800/60 text-green-300 px-1 py-0.5 rounded font-mono text-[9px] ${
                           previewSource === sourceIdx ? 'ring-1 ring-green-500 bg-green-700/60' : ''
                         }`}>{formatKeyName(k)}</kbd>
-                        <span className="text-gray-600 text-[8px]">{labels[i] ?? (i + 1)}</span>
+                        <span className="text-gray-600 text-[8px] truncate max-w-full">{labels[i] ?? (i + 1)}</span>
                       </div>
                     );
                   })}
@@ -418,25 +403,33 @@ export const AtemTrainer: React.FC<AtemTrainerProps> = ({ onBackToHome, keyBindi
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Column: Switcher Hardware Panel control surface (7 columns on large displays) */}
-        <div className="col-span-12 lg:col-span-7">
-          <AtemPanel
-            programSource={programSource}
-            previewSource={previewSource}
-            transitionType={transitionType}
-            wipePattern={wipePattern}
-            faderValue={faderValue}
-            isAutoTransitioning={isAutoTransitioning}
-            onSelectProgram={setProgramSource}
-            onSelectPreview={setPreviewSource}
-            onCut={handleCut}
-            onAuto={handleAuto}
-            onSelectTransitionType={setTransitionType}
-            onSelectWipePattern={setWipePattern}
-            onFaderChange={handleFaderChange}
-          />
+          {/* Switcher Quick Reference Card */}
+          <div className="bg-[#11131e] border border-gray-800 rounded-xl p-3.5 shadow-xl flex flex-col gap-2">
+            <h2 className="text-white font-bold text-xs border-b border-gray-800 pb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+              <AlertCircle className="w-3.5 h-3.5 text-sky-400" />
+              Switcher Quick Reference
+            </h2>
+            <div className="text-[11px] text-gray-400 flex flex-col gap-2 leading-tight">
+              <div>
+                <strong className="text-gray-300">PROGRAM / PREVIEW:</strong> Select live feed (<span className="text-red-400">RED</span>) & staged feed (<span className="text-green-400">GREEN</span>).
+              </div>
+              <div>
+                <strong className="text-gray-300">TRANSITIONS:</strong> <span className="text-gray-200">CUT</span> for immediate swap, <span className="text-gray-200">AUTO</span> for timed transition, or manual <span className="text-gray-200">T-BAR</span>.
+              </div>
+              <div className="pt-1.5 border-t border-gray-800/80">
+                <strong className="text-gray-300 block mb-0.5 text-[10px]">ROUTING:</strong>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-gray-500 font-mono text-[10px]">
+                  <div>In 1: Cam 1 (Stage R)</div>
+                  <div>In 2: Cam 2 (PTZ CTR)</div>
+                  <div>In 3: Cam 3 (Stage L)</div>
+                  <div>In 4: Media 1</div>
+                  <div>In 5: Media 2</div>
+                  <div>In 8: BLACK</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
