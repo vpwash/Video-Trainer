@@ -183,9 +183,9 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
   // Pre-load PTZ background scenario images
   useEffect(() => {
     const imagesToLoad = [
-      '/scenarios/PTZ_Images/Stage.png',
-      '/scenarios/PTZ_Images/StageWT.png',
-      '/scenarios/PTZ_Images/StageDemo.png',
+      '/scenarios/PTZ_Images/Stage.webp',
+      '/scenarios/PTZ_Images/StageWT.webp',
+      '/scenarios/PTZ_Images/StageDemo.webp',
       '/scenarios/stage.jpeg',
     ];
 

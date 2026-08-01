@@ -411,11 +411,11 @@ export function drawStageToCanvas(
   let drawVectorStage = true;
 
   // --- DRAW BACKGROUND SCENARIO IMAGE ---
-  let ptzBgSrc = '/scenarios/PTZ_Images/Stage.png';
+  let ptzBgSrc = '/scenarios/PTZ_Images/Stage.webp';
   if (sceneType === 'watchtower') {
-    ptzBgSrc = '/scenarios/PTZ_Images/StageWT.png';
+    ptzBgSrc = '/scenarios/PTZ_Images/StageWT.webp';
   } else if (sceneType === 'demo') {
-    ptzBgSrc = '/scenarios/PTZ_Images/StageDemo.png';
+    ptzBgSrc = '/scenarios/PTZ_Images/StageDemo.webp';
   }
 
   const scenarioBgImg = getCachedImage(ptzBgSrc);
