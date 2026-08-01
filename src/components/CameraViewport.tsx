@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { CameraState } from '../utils/canvasRenderer';
-import { drawStageToCanvas } from '../utils/canvasRenderer';
+import { drawStageToCanvas, addImageLoadListener } from '../utils/canvasRenderer';
 import { RefreshCw } from 'lucide-react';
 
 interface CameraViewportProps {
@@ -28,7 +28,13 @@ export const CameraViewport: React.FC<CameraViewportProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    drawStageToCanvas(ctx, canvas.width, canvas.height, cameraIdx, cameraState, showWbPanel, activeScenario);
+    const render = () => {
+      drawStageToCanvas(ctx, canvas.width, canvas.height, cameraIdx, cameraState, showWbPanel, activeScenario);
+    };
+
+    render();
+    const unsubscribe = addImageLoadListener(render);
+    return () => unsubscribe();
   }, [cameraIdx, cameraState, showWbPanel, activeScenario, bgImageLoaded]);
 
   return (

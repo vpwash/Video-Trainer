@@ -12,10 +12,22 @@ export interface CameraState {
 
 // Module-level cache for scenario images
 const imageCache: { [key: string]: HTMLImageElement } = {};
+const loadListeners: Array<() => void> = [];
+
+export function addImageLoadListener(listener: () => void) {
+  loadListeners.push(listener);
+  return () => {
+    const idx = loadListeners.indexOf(listener);
+    if (idx !== -1) loadListeners.splice(idx, 1);
+  };
+}
 
 function getCachedImage(src: string): HTMLImageElement {
   if (!imageCache[src]) {
     const img = new Image();
+    img.onload = () => {
+      loadListeners.forEach((fn) => fn());
+    };
     img.src = src;
     imageCache[src] = img;
   }
@@ -419,7 +431,6 @@ export function drawStageToCanvas(
   }
 
   const scenarioBgImg = getCachedImage(ptzBgSrc);
-  const fallbackStageImg = getCachedImage('/scenarios/stage.jpeg');
 
   if (state.customBgImage) {
     const customImg = getCachedImage(state.customBgImage);
@@ -433,9 +444,6 @@ export function drawStageToCanvas(
     }
   } else if (scenarioBgImg.complete && scenarioBgImg.naturalWidth > 0) {
     ctx.drawImage(scenarioBgImg, 0, 0, width, height);
-    drawVectorStage = false;
-  } else if (fallbackStageImg.complete && fallbackStageImg.naturalWidth > 0) {
-    ctx.drawImage(fallbackStageImg, 0, 0, width, height);
     drawVectorStage = false;
   } else {
     ctx.fillStyle = '#5a8cb3';
