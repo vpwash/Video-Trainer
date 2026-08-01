@@ -22,7 +22,7 @@ interface BolinControllerProps {
   activeScenario?: 'stage' | 'watchtower' | 'demo';
 }
 
-// Realistic Interactive Rotary Knob Component
+// Realistic Interactive Rotary Knob Component with Mouse & Touch support
 interface CanonKnobProps {
   label: string;
   min: number;
@@ -55,14 +55,14 @@ const CanonKnob: React.FC<CanonKnobProps> = ({
   useEffect(() => {
     if (!isDragging || disabled) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (clientX: number, clientY: number) => {
       if (!knobRef.current) return;
       const rect = knobRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
 
       let deg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
       if (deg > 180) deg -= 360;
@@ -73,13 +73,30 @@ const CanonKnob: React.FC<CanonKnobProps> = ({
       onChange(newVal);
     };
 
-    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseMove = (e: MouseEvent) => {
+      handlePointerMove(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        e.preventDefault();
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const handlePointerEnd = () => setIsDragging(false);
 
     window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mouseup', handlePointerEnd);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handlePointerEnd);
+    window.addEventListener('touchcancel', handlePointerEnd);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handlePointerEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handlePointerEnd);
+      window.removeEventListener('touchcancel', handlePointerEnd);
     };
   }, [isDragging, min, max, disabled, onChange]);
 
@@ -95,16 +112,22 @@ const CanonKnob: React.FC<CanonKnobProps> = ({
         <div
           ref={knobRef}
           onMouseDown={() => !disabled && setIsDragging(true)}
-          className="w-11 h-11 rounded-full bg-gradient-to-b from-[#3a3b40] to-[#1c1d22] border-2 border-[#52545d] shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative"
+          onTouchStart={(e) => {
+            if (!disabled) {
+              e.preventDefault();
+              setIsDragging(true);
+            }
+          }}
+          className="w-11 h-11 rounded-full bg-gradient-to-b from-[#3a3b40] to-[#1c1d22] border-2 border-[#52545d] shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing relative touch-none"
         >
           <div
-            className="w-full h-full rounded-full transition-transform duration-75 relative"
+            className="w-full h-full rounded-full transition-transform duration-75 relative pointer-events-none"
             style={{ transform: `rotate(${angle}deg)` }}
           >
             <div className="w-1.5 h-4 bg-amber-400 rounded-full absolute top-1 left-1/2 -translate-x-1/2 shadow-[0_0_4px_#f59e0b]" />
           </div>
 
-          <div className="w-6 h-6 rounded-full bg-[#121316] border border-gray-700 absolute inset-0 m-auto flex items-center justify-center shadow-inner">
+          <div className="w-6 h-6 rounded-full bg-[#121316] border border-gray-700 absolute inset-0 m-auto flex items-center justify-center shadow-inner pointer-events-none">
             <div className="w-1.5 h-1.5 rounded-full bg-gray-800" />
           </div>
         </div>
@@ -144,32 +167,43 @@ export const BolinController: React.FC<BolinControllerProps> = ({
   const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
   const baseRef = useRef<HTMLDivElement>(null);
 
+  const updatePosition = (clientX: number, clientY: number) => {
+    if (!baseRef.current) return;
+    const rect = baseRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    const maxDistance = 45;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > maxDistance) {
+      dx = (dx / distance) * maxDistance;
+      dy = (dy / distance) * maxDistance;
+    }
+
+    setJoystickPos({ x: dx, y: dy });
+    const normX = dx / maxDistance;
+    const normY = dy / maxDistance;
+    onJoystickMove(normX, normY);
+  };
+
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!baseRef.current) return;
-      const rect = baseRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-
-      let dx = e.clientX - centerX;
-      let dy = e.clientY - centerY;
-      const maxDistance = 45;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance > maxDistance) {
-        dx = (dx / distance) * maxDistance;
-        dy = (dy / distance) * maxDistance;
-      }
-
-      setJoystickPos({ x: dx, y: dy });
-      const normX = dx / maxDistance;
-      const normY = dy / maxDistance;
-      onJoystickMove(normX, normY);
+      updatePosition(e.clientX, e.clientY);
     };
 
-    const handleMouseUp = () => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        e.preventDefault();
+        updatePosition(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const handleDragEnd = () => {
       setIsDragging(false);
       setJoystickPos({ x: 0, y: 0 });
       onJoystickRelease();
@@ -177,10 +211,17 @@ export const BolinController: React.FC<BolinControllerProps> = ({
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mouseup', handleDragEnd);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleDragEnd);
+    window.addEventListener('touchcancel', handleDragEnd);
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleDragEnd);
+      window.removeEventListener('touchcancel', handleDragEnd);
     };
   }, [isDragging, onJoystickMove, onJoystickRelease, stopMotorHum]);
 
@@ -188,6 +229,16 @@ export const BolinController: React.FC<BolinControllerProps> = ({
     e.preventDefault();
     setIsDragging(true);
     startMotorHum(0.5);
+    updatePosition(e.clientX, e.clientY);
+  };
+
+  const handleJoystickTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    startMotorHum(0.5);
+    if (e.touches.length > 0) {
+      updatePosition(e.touches[0].clientX, e.touches[0].clientY);
+    }
   };
 
   const handleZoomStart = (dir: number) => {
@@ -245,13 +296,16 @@ export const BolinController: React.FC<BolinControllerProps> = ({
           {/* Zoom Rocker */}
           <div className="flex flex-col items-center gap-1">
             <span className="text-[9px] text-gray-400 font-bold uppercase font-mono">Zoom Lever</span>
-            <div className="relative w-12 h-24 bg-[#101115] rounded-xl border-2 border-[#2d2e33] flex flex-col justify-between items-center p-1.5 shadow-inner">
+            <div className="relative w-12 h-24 bg-[#101115] rounded-xl border-2 border-[#2d2e33] flex flex-col justify-between items-center p-1.5 shadow-inner touch-none">
               <span className="text-[9px] font-bold text-gray-400 font-mono">T</span>
               <div className="w-8 h-12 bg-[#2d2e33] border border-gray-700 rounded flex flex-col justify-between overflow-hidden shadow select-none">
                 <button
                   onMouseDown={() => handleZoomStart(1)}
                   onMouseUp={handleZoomStop}
                   onMouseLeave={handleZoomStop}
+                  onTouchStart={(e) => { e.preventDefault(); handleZoomStart(1); }}
+                  onTouchEnd={(e) => { e.preventDefault(); handleZoomStop(); }}
+                  onTouchCancel={(e) => { e.preventDefault(); handleZoomStop(); }}
                   className="w-full h-1/2 bg-gradient-to-b from-[#3a3b40] to-[#202125] active:from-[#151619] border-b border-black flex items-center justify-center cursor-pointer text-xs text-gray-300 hover:text-white"
                 >
                   ▲
@@ -260,6 +314,9 @@ export const BolinController: React.FC<BolinControllerProps> = ({
                   onMouseDown={() => handleZoomStart(-1)}
                   onMouseUp={handleZoomStop}
                   onMouseLeave={handleZoomStop}
+                  onTouchStart={(e) => { e.preventDefault(); handleZoomStart(-1); }}
+                  onTouchEnd={(e) => { e.preventDefault(); handleZoomStop(); }}
+                  onTouchCancel={(e) => { e.preventDefault(); handleZoomStop(); }}
                   className="w-full h-1/2 bg-gradient-to-b from-[#202125] to-[#3a3b40] active:from-[#151619] flex items-center justify-center cursor-pointer text-xs text-gray-300 hover:text-white"
                 >
                   ▼
@@ -367,15 +424,17 @@ export const BolinController: React.FC<BolinControllerProps> = ({
             </button>
           </div>
 
-          {/* Joystick Steering */}
+          {/* Joystick Steering (Touchscreen & Mouse Enabled) */}
           <div className="flex flex-col items-center gap-1">
             <span className="text-[8px] font-bold text-gray-400 font-mono uppercase">Steering</span>
             <div
               ref={baseRef}
-              className="w-24 h-24 rounded-full joystick-base relative flex items-center justify-center cursor-crosshair border-2 border-[#2d2e33]"
+              className="w-24 h-24 rounded-full joystick-base relative flex items-center justify-center cursor-crosshair border-2 border-[#2d2e33] touch-none select-none"
               onMouseDown={handleJoystickMouseDown}
+              onTouchStart={handleJoystickTouchStart}
             >
-              <div className="w-10 h-10 rounded-full joystick-handle absolute transition-shadow duration-100 flex items-center justify-center border border-gray-800 shadow-md"
+              <div
+                className="w-10 h-10 rounded-full joystick-handle absolute transition-shadow duration-100 flex items-center justify-center border border-gray-800 shadow-md pointer-events-none"
                 style={{
                   transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)`,
                   cursor: isDragging ? 'grabbing' : 'grab',
