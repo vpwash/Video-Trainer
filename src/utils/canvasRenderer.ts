@@ -746,7 +746,7 @@ export function drawMediaPlayerScreen(
   width: number,
   height: number,
   type: 'media1' | 'vlc',
-  playbackTime: number,
+  _playbackTime: number,
   activeScenario?: 'none' | 'chairman' | 'interview' | 'watchtower'
 ) {
   // Determine media source path
