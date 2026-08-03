@@ -289,12 +289,12 @@ export const BolinController: React.FC<BolinControllerProps> = ({
       </div>
 
       {/* Condensed Main Controls Grid */}
-      <div className="grid grid-cols-12 gap-4 items-center">
+      <div className="grid grid-cols-12 gap-3 lg:gap-4 items-stretch">
         
         {/* LEFT SECTION: Zoom Rocker & Zoom Speed */}
-        <div className="col-span-12 sm:col-span-6 lg:col-span-3 bg-[#181920] p-3 rounded-xl border border-[#2d2e38] flex items-center justify-around gap-2 h-full">
+        <div className="col-span-12 sm:col-span-5 xl:col-span-3 bg-[#181920] p-3 rounded-xl border border-[#2d2e38] flex items-center justify-evenly gap-2">
           {/* Zoom Rocker */}
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-1 shrink-0">
             <span className="text-[9px] text-gray-400 font-bold uppercase font-mono">Zoom Lever</span>
             <div className="relative w-12 h-24 bg-[#101115] rounded-xl border-2 border-[#2d2e33] flex flex-col justify-between items-center p-1.5 shadow-inner touch-none">
               <span className="text-[9px] font-bold text-gray-400 font-mono">T</span>
@@ -327,21 +327,23 @@ export const BolinController: React.FC<BolinControllerProps> = ({
           </div>
 
           {/* Zoom Speed Dial */}
-          <CanonKnob
-            label="Zoom Speed"
-            min={1}
-            max={8}
-            value={zoomSpeedVal}
-            displayValue={`Lvl ${zoomSpeedVal}`}
-            subLabelLeft="Low"
-            subLabelRight="High"
-            onChange={(val) => onKnobChange('zoomSpeed', val)}
-          />
+          <div className="shrink-0">
+            <CanonKnob
+              label="Zoom Speed"
+              min={1}
+              max={8}
+              value={zoomSpeedVal}
+              displayValue={`Lvl ${zoomSpeedVal}`}
+              subLabelLeft="Low"
+              subLabelRight="High"
+              onChange={(val) => onKnobChange('zoomSpeed', val)}
+            />
+          </div>
         </div>
 
         {/* CENTER SECTION: Keypad & Preset Mode */}
-        <div className="col-span-12 sm:col-span-6 lg:col-span-5 bg-[#181920] p-3 rounded-xl border border-[#2d2e38] flex flex-col justify-between gap-3 h-full">
-          <div className="flex justify-between items-center border-b border-gray-800 pb-1">
+        <div className="col-span-12 sm:col-span-7 xl:col-span-5 bg-[#181920] p-3 rounded-xl border border-[#2d2e38] flex flex-col justify-between gap-3">
+          <div className="flex flex-wrap justify-between items-center border-b border-gray-800 pb-1.5 gap-1.5">
             <span className="text-[9px] font-bold text-gray-400 font-mono uppercase tracking-wider">
               Preset & Keypad Controls
             </span>
@@ -350,7 +352,7 @@ export const BolinController: React.FC<BolinControllerProps> = ({
             <div className="flex gap-1.5">
               <button
                 onClick={() => { playClick(); onPresetModeToggle(); }}
-                className={`px-2.5 py-0.5 rounded border font-mono font-bold text-[9px] uppercase transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded border font-mono font-bold text-[9px] uppercase transition-all cursor-pointer ${
                   presetMode === 'store'
                     ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_8px_#f59e0b] scale-[1.03]'
                     : 'bg-[#252730] text-amber-400 border-amber-700/60 hover:bg-amber-950/40'
@@ -360,7 +362,7 @@ export const BolinController: React.FC<BolinControllerProps> = ({
               </button>
               <button
                 onClick={() => { playClick(); onCallModeToggle(); }}
-                className={`px-2.5 py-0.5 rounded border font-mono font-bold text-[9px] uppercase transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded border font-mono font-bold text-[9px] uppercase transition-all cursor-pointer ${
                   presetMode === 'call'
                     ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_8px_#06b6d4] scale-[1.03]'
                     : 'bg-[#252730] text-cyan-400 border-cyan-700/60 hover:bg-cyan-950/40'
@@ -372,14 +374,14 @@ export const BolinController: React.FC<BolinControllerProps> = ({
           </div>
 
           {/* Keypad Grid (5x2 layout) */}
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-5 gap-1.5 min-w-0">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
               const presetVal = num === 10 ? 0 : num;
               return (
                 <button
                   key={`num-${num}`}
                   onClick={() => handleNumKey(presetVal)}
-                  className="h-9 bg-[#d8dadf] text-[#1c1d22] font-black font-mono text-xs rounded border-b-2 border-[#a6a8af] hover:bg-white active:bg-gray-300 active:border-b-0 active:translate-y-[2px] transition-all cursor-pointer flex items-center justify-center shadow"
+                  className="h-9 bg-[#d8dadf] text-[#1c1d22] font-black font-mono text-xs rounded border-b-2 border-[#a6a8af] hover:bg-white active:bg-gray-300 active:border-b-0 active:translate-y-[2px] transition-all cursor-pointer flex items-center justify-center shadow min-w-0"
                 >
                   {num === 10 ? '10/0' : num}
                 </button>
@@ -389,21 +391,21 @@ export const BolinController: React.FC<BolinControllerProps> = ({
         </div>
 
         {/* RIGHT SECTION: Camera Selector, Invert, Joystick & Speed */}
-        <div className="col-span-12 lg:col-span-4 bg-[#181920] p-3 rounded-xl border border-[#2d2e38] flex flex-wrap sm:flex-nowrap items-center justify-around gap-3 h-full">
+        <div className="col-span-12 xl:col-span-4 bg-[#181920] p-3 rounded-xl border border-[#2d2e38] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
           {/* Left Sub-stack: Active Camera & Tilt Invert */}
-          <div className="flex flex-col gap-2.5 items-center">
+          <div className="flex flex-col gap-2.5 items-center shrink-0">
             <span className="text-[8px] font-bold text-gray-400 font-mono uppercase">Camera Select</span>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1">
               {[1, 2, 3].map((idx) => {
                 const isActive = activeCameraIdx === idx;
                 return (
                   <button
                     key={`cam-btn-${idx}`}
                     onClick={() => handleCameraBtn(idx as 1 | 2 | 3)}
-                    className={`w-8 h-8 rounded-full border-2 font-mono font-black text-[10px] transition-all cursor-pointer shadow flex items-center justify-center ${
+                    className={`w-7 h-7 rounded-full font-mono text-[10px] font-bold border transition-all cursor-pointer flex items-center justify-center ${
                       isActive
-                        ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_8px_#06b6d4]'
-                        : 'bg-[#d8dadf] text-[#1c1d22] border-[#a6a8af] hover:bg-white'
+                        ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_10px_#06b6d4]'
+                        : 'bg-[#252730] text-gray-300 border-gray-700 hover:border-gray-500'
                     }`}
                   >
                     C{idx}
@@ -414,18 +416,18 @@ export const BolinController: React.FC<BolinControllerProps> = ({
 
             <button
               onClick={() => { playClick(); onToggleInvertTilt(); }}
-              className={`w-20 h-6 rounded border font-bold text-[8px] uppercase transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded border text-[8px] font-mono font-bold uppercase transition-all cursor-pointer ${
                 invertTilt
-                  ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_6px_#f59e0b]'
-                  : 'bg-[#252730] text-gray-300 border-gray-700 hover:bg-gray-700'
+                  ? 'bg-purple-950 text-purple-300 border-purple-600 shadow-[0_0_6px_rgba(147,51,234,0.5)]'
+                  : 'bg-[#202128] text-gray-400 border-gray-700 hover:text-gray-200'
               }`}
             >
-              {invertTilt ? 'TILT: INVERT' : 'TILT: NORMAL'}
+              Tilt:{invertTilt ? 'INVERTED' : 'NORMAL'}
             </button>
           </div>
 
-          {/* Joystick Steering (Touchscreen & Mouse Enabled) */}
-          <div className="flex flex-col items-center gap-1">
+          {/* Center Sub-stack: Virtual Joystick */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
             <span className="text-[8px] font-bold text-gray-400 font-mono uppercase">Steering</span>
             <div
               ref={baseRef}

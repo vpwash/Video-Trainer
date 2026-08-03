@@ -129,17 +129,13 @@ export function drawStageToCanvas(
 
   // Camera perspective shifting based on index (1=Right, 2=Center, 3=Left)
   let angleShift = 0;
-  if (cameraIdx === 1) angleShift = -80; // Stage Right looking left-ish
-  if (cameraIdx === 3) angleShift = 80;  // Stage Left looking right-ish
+  if (cameraIdx === 1) angleShift = -100; // Stage Right looking left-ish
+  if (cameraIdx === 3) angleShift = 100;  // Stage Left looking right-ish
 
-  // Pan and Tilt translations (scaled by zoom)
-  const panOffset = -state.pan * 6 * state.zoom + angleShift;
-  const tiltOffset = -state.tilt * 5 * state.zoom;
-
-  // Apply transformations: Zoom from center, then translate
-  ctx.translate(centerX, centerY);
+  // Apply camera perspective angle offset first, then zoom true-center, then pan/tilt
+  ctx.translate(centerX + angleShift, centerY);
   ctx.scale(state.zoom, state.zoom);
-  ctx.translate(-centerX + panOffset / state.zoom, -centerY + tiltOffset / state.zoom);
+  ctx.translate(-centerX - state.pan * 18, -centerY - state.tilt * 14);
 
   // --- DRAW BACKGROUND SCENARIO IMAGE ---
   let ptzBgSrc = '/scenarios/PTZ_Images/Stage.webp';

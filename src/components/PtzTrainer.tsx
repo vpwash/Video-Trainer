@@ -3,7 +3,7 @@ import CameraViewport from './CameraViewport';
 import BolinController from './BolinController';
 import type { CameraState } from '../utils/canvasRenderer';
 import { useAudio } from '../hooks/useAudio';
-import { HelpCircle, RefreshCw, Bookmark, ArrowRight, Home, Settings, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { HelpCircle, RefreshCw, Bookmark, ArrowRight, Home, Settings, Image as ImageIcon, Trash2, Crosshair } from 'lucide-react';
 import { type KeyBindings, formatKeyName } from '../utils/keyBindings';
 
 interface PtzTrainerProps {
@@ -23,6 +23,13 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
       if (parsed === 1 || parsed === 2 || parsed === 3) return parsed as 1 | 2 | 3;
     }
     return 2;
+  });
+
+  // Active Scenario state
+  const [activeScenario, setActiveScenario] = useState<'stage' | 'watchtower' | 'demo'>('stage');
+  const [showGuides, setShowGuides] = useState<boolean>(() => {
+    const saved = localStorage.getItem('av-trainer-ptz-show-guides');
+    return saved ? saved === 'true' : false;
   });
 
   // States for all three cameras
@@ -62,9 +69,6 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
       },
     };
   });
-
-  // Active Scenario state
-  const [activeScenario, setActiveScenario] = useState<'stage' | 'watchtower' | 'demo'>('stage');
 
   // File input ref for user-uploaded custom background images
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -106,6 +110,10 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
     }));
     playClick();
   };
+
+  useEffect(() => {
+    localStorage.setItem('av-trainer-ptz-show-guides', showGuides.toString());
+  }, [showGuides]);
 
   // Controls settings
   const [joystickSpeed, setJoystickSpeed] = useState<number>(() => {
@@ -185,8 +193,10 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
           const zoomFactor = (zoomSpeedVal / 3) * 0.03;
 
           const tiltSign = invertTilt ? -1 : 1;
-          const newPan = Math.max(-50, Math.min(50, current.pan + dx * speedFactor));
-          const newTilt = Math.max(-30, Math.min(30, current.tilt + dy * speedFactor * tiltSign));
+          const maxPan = 50 * current.zoom;
+          const maxTilt = 30 * current.zoom;
+          const newPan = Math.max(-maxPan, Math.min(maxPan, current.pan + dx * speedFactor));
+          const newTilt = Math.max(-maxTilt, Math.min(maxTilt, current.tilt + dy * speedFactor * tiltSign));
           const newZoom = Math.max(1.0, Math.min(8.0, current.zoom + zoomDir * zoomFactor));
 
           return {
@@ -283,8 +293,8 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
 
       if (activeKeys.has(keyBindings.ptz.panLeft)) dx -= 1;
       if (activeKeys.has(keyBindings.ptz.panRight)) dx += 1;
-      if (activeKeys.has(keyBindings.ptz.tiltUp)) dy += 1;
-      if (activeKeys.has(keyBindings.ptz.tiltDown)) dy -= 1;
+      if (activeKeys.has(keyBindings.ptz.tiltUp)) dy -= 1;
+      if (activeKeys.has(keyBindings.ptz.tiltDown)) dy += 1;
 
       if (activeKeys.has(keyBindings.ptz.zoomIn) || (keyBindings.ptz.zoomIn === '+' && activeKeys.has('='))) zoom += 1;
       if (activeKeys.has(keyBindings.ptz.zoomOut) || (keyBindings.ptz.zoomOut === '-' && activeKeys.has('_'))) zoom -= 1;
@@ -509,9 +519,9 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
             SETTINGS
           </button>
 
-          {/* Scenario Selector */}
-          <div className="flex items-center bg-[#0a0b10] border border-gray-800 rounded-lg p-0.5">
-            <span className="text-[9px] font-bold text-gray-400 px-1.5 uppercase font-mono">Scenario:</span>
+          {/* Scenario & Framing Guides Bar */}
+          <div className="flex items-center gap-1.5 bg-[#181a24] p-1 rounded-lg border border-gray-800">
+            <span className="text-[10px] font-mono font-bold text-gray-400 px-2 uppercase">Scenario:</span>
             <button
               onClick={() => { playClick(); setActiveScenario('stage'); }}
               className={`px-2.5 py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${
@@ -541,6 +551,20 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
               }`}
             >
               Demonstration
+            </button>
+
+            <div className="w-[1px] h-4 bg-gray-800 mx-1" />
+
+            <button
+              onClick={() => { playClick(); setShowGuides((prev) => !prev); }}
+              className={`px-2.5 py-0.5 text-[11px] font-mono font-bold rounded cursor-pointer transition-all flex items-center gap-1.5 border ${
+                showGuides
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
+                  : 'bg-gray-900/60 text-gray-400 border-gray-800 hover:text-gray-200'
+              }`}
+            >
+              <Crosshair className={`w-3 h-3 ${showGuides ? 'text-amber-400 animate-spin-slow' : ''}`} />
+              {showGuides ? 'GUIDES: ON' : 'GUIDES: OFF'}
             </button>
           </div>
 
@@ -604,6 +628,7 @@ export const PtzTrainer: React.FC<PtzTrainerProps> = ({ onBackToHome, keyBinding
                 cameraState={cameraStates[idx]}
                 isLive={false}
                 activeScenario={activeScenario}
+                showGuides={showGuides}
               />
             </div>
           );

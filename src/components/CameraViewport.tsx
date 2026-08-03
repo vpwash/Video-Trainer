@@ -8,6 +8,7 @@ interface CameraViewportProps {
   isLive?: boolean;
   activeScenario?: 'stage' | 'watchtower' | 'demo';
   bgImageLoaded?: boolean;
+  showGuides?: boolean;
 }
 
 export const CameraViewport: React.FC<CameraViewportProps> = ({
@@ -16,6 +17,7 @@ export const CameraViewport: React.FC<CameraViewportProps> = ({
   isLive: _isLive,
   activeScenario = 'stage',
   bgImageLoaded,
+  showGuides = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -43,6 +45,26 @@ export const CameraViewport: React.FC<CameraViewportProps> = ({
         height={1080}
         className="w-full h-full object-cover block"
       />
+
+      {/* Frame Framing & Alignment Guides Overlay */}
+      {showGuides && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Headroom 5% White Guide Line */}
+          <div className="absolute top-[5%] left-0 right-0 border-t border-dashed border-white/80 shadow-[0_0_4px_rgba(255,255,255,0.6)]">
+            <span className="absolute left-2 -top-3 text-[9px] font-mono font-bold text-white bg-black/70 px-1 rounded border border-white/30">HEADROOM</span>
+          </div>
+
+          {/* Center Crosshair (White) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center">
+            {/* Horizontal Crosshair Bar */}
+            <div className="absolute w-full h-[1.5px] bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+            {/* Vertical Crosshair Bar */}
+            <div className="absolute h-full w-[1.5px] bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+            {/* Center Reticle Circle */}
+            <div className="w-3 h-3 rounded-full border-1.5 border-white/90 shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

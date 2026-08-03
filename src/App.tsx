@@ -12,6 +12,7 @@ function App() {
   const { playClick } = useAudio();
   const [keyBindings, setKeyBindings] = useState<KeyBindings>(loadKeyBindings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLegalOpen, setIsLegalOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'atem' | 'ptz'>('atem');
   
   // Track which field is currently listening for a key press
@@ -392,6 +393,79 @@ function App() {
     );
   }
 
+  function renderLegalModal() {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="bg-[#10121a] border border-gray-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              <h3 className="text-lg font-bold text-white font-mono tracking-wide">
+                LEGAL & PRIVACY NOTICE
+              </h3>
+            </div>
+            <button
+              onClick={() => { playClick(); setIsLegalOpen(false); }}
+              className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Legal Disclaimer Body */}
+          <div className="space-y-4 text-xs text-gray-300 leading-relaxed font-sans">
+            <section className="bg-gray-950/60 p-4 rounded-xl border border-gray-850 space-y-2">
+              <h4 className="text-sky-400 font-bold font-mono text-xs uppercase tracking-wider">
+                1. Educational Disclaimer & Affiliation Notice
+              </h4>
+              <p>
+                This application is an independent educational training simulator created solely for instructional, skill-building, and operational practice purposes.
+              </p>
+              <p>
+                It is <strong>not endorsed by, directly affiliated with, maintained, authorized, or sponsored by</strong> the Watchtower Bible and Tract Society of Pennsylvania or any of its corporate entities, subsidiaries, or associated organizations.
+              </p>
+            </section>
+
+            <section className="bg-gray-950/60 p-4 rounded-xl border border-gray-850 space-y-2">
+              <h4 className="text-sky-400 font-bold font-mono text-xs uppercase tracking-wider">
+                2. Synthetic Media & Likeness Disclaimer
+              </h4>
+              <p>
+                All visual elements, scenario backgrounds, character depictions, and multimedia assets within this application are synthetically generated using Artificial Intelligence (AI).
+              </p>
+              <p>
+                Any likeness to actual individuals, living or deceased, or specific proprietary facilities is entirely coincidental and unintended.
+              </p>
+            </section>
+
+            <section className="bg-gray-950/60 p-4 rounded-xl border border-gray-850 space-y-2">
+              <h4 className="text-sky-400 font-bold font-mono text-xs uppercase tracking-wider">
+                3. Data & Privacy Policy
+              </h4>
+              <p>
+                <strong>Zero External Data Collection:</strong> This application operates entirely client-side within your browser. We do not collect, transmit, store, or sell any personal data, analytical telemetry, or usage metrics.
+              </p>
+              <p>
+                <strong>Local Storage Usage:</strong> Your custom key bindings, saved PTZ camera positions, scene preferences, and audio toggles are stored locally on your device via standard browser <code>localStorage</code>. This data never leaves your computer.
+              </p>
+            </section>
+          </div>
+
+          {/* Footer Close */}
+          <div className="border-t border-gray-800 pt-3 flex justify-end">
+            <button
+              onClick={() => { playClick(); setIsLegalOpen(false); }}
+              className="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-black text-xs font-bold rounded-xl cursor-pointer transition-all active:scale-[0.98]"
+            >
+              Understand & Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#090a0f] text-gray-100 flex flex-col justify-between selection:bg-sky-500/30 selection:text-white">
       {/* Decorative background grid and glow */}
@@ -540,11 +614,19 @@ function App() {
       </main>
 
       {/* Footer Info */}
-      <footer className="relative z-10 border-t border-gray-900 bg-gray-950/20 py-4 px-6 text-center text-[10px] text-gray-600 font-mono tracking-wide uppercase">
-        © 2026 Audio/Video Guidelines Reference CO-160a
+      <footer className="relative z-10 border-t border-gray-900 bg-gray-950/20 py-4 px-6 text-center text-[10px] text-gray-600 font-mono tracking-wide uppercase flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6">
+        <span>© {new Date().getFullYear()} <a href="https://vpwash.net" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors underline decoration-gray-800 underline-offset-2">vpwash.net</a></span>
+        <span className="hidden sm:inline text-gray-800">•</span>
+        <button
+          onClick={() => { playClick(); setIsLegalOpen(true); }}
+          className="hover:text-gray-400 transition-colors underline decoration-gray-800 underline-offset-2 cursor-pointer"
+        >
+          Legal & Privacy Notice
+        </button>
       </footer>
 
       {isSettingsOpen && renderSettingsModal()}
+      {isLegalOpen && renderLegalModal()}
     </div>
   );
 }
